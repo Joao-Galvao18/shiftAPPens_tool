@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stroke tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <aside id="side">
+    <div class="drop">
+      <input type="file" id="file" accept="image/*" hidden>
+      <button id="pick" class="btn primary">Upload image</button>
+      <div id="dropHint" class="hint">or drop a file here, or paste with Ctrl + V</div>
+      <div id="srcinfo" class="srcinfo"></div>
+    </div>
+
+    <div id="panels"></div>
+
+    <footer class="sidefoot">
+      <button id="reset" class="btn ghost small">Reset all</button>
+    </footer>
+  </aside>
+
+  <main id="stage" data-drop="Drop image">
+    <div id="toolbar">
+      <span id="dims" class="pill"></span>
+      <span id="scaleinfo" class="pill dim"></span>
+      <span class="spacer"></span>
+      <div id="lang" class="seg" role="group" aria-label="Language">
+        <button type="button" data-lang="en" class="on" aria-pressed="true">EN</button>
+        <button type="button" data-lang="pt" aria-pressed="false">PT</button>
+      </div>
+      <button id="fit" class="btn ghost small">Fit</button>
+      <button id="exportPng" class="btn small">Export PNG</button>
+      <button id="exportSvg" class="btn small">Export SVG</button>
+    </div>
+    <div id="viewport"><canvas id="view"></canvas></div>
+    <div id="status"></div>
+  </main>
+
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/edt.js"></script>
+<script src="js/contour.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
