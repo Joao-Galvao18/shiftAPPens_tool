@@ -82,12 +82,12 @@ Floyd–Steinberg, random noise, and a proper halftone screen with adjustable an
 and dot shape) with a dot size that also scales with the canvas.
 *Clip image to silhouette* keeps the dither off a photo's opaque background.
 
-**Background removal** — Auto reads the key colour from the four corners; or pick
-one with the eyedropper. Tolerance, edge softening, and a contiguous toggle: on, it
-only eats background connected to the border, so a colour that also appears inside
-the subject survives; off, it removes that colour everywhere. Removal is automatic only; there is no manual touch-up brush, so a photo whose
-background shares colours with the subject may need the tolerance and the
-contiguous toggle rather than painting over the mistakes.
+**Background removal** — one button. It reads the backdrop colour from the four
+corners and lifts it out from the edges inwards, so a colour that also appears
+inside the subject survives. How much slack it allows is taken from how closely
+the four corners agree: a flat backdrop gets a tight threshold, an unevenly lit
+one gets more room. Best on a plain or evenly lit backdrop; there is no manual
+touch-up.
 
 **Drawing** — marker, scribble or highlighter, any colour, on a layer above the
 artwork, in its own tab. Nib width is a percentage of the basis dimension like everything else, and
@@ -118,12 +118,14 @@ controls, since their only job is to shape the strokes.
 
 **Drawing** — brush type, colour, nib width, undo and clear.
 
-*Align* snaps the subject to any of nine positions. It counts in the space the
-strokes need, so aligning left puts the outermost stroke against the edge rather
-than off the canvas.
+*Align* snaps the subject to any of nine positions. It aligns the subject's own
+bounding box, so strokes may bleed past the edge — lower Scale if you want them
+inside. (An earlier version reserved room for the strokes, but at ordinary scales
+that made the padded box taller than the canvas and every position landed within
+a few pixels of the others.)
 
-The toolbar has three tools: Move, Draw and Pick colour (`V`, `B`, `I`). A ring
-follows the pointer at the nib's true size while drawing.
+There is no tool strip. Drawing is switched on from the Drawing tab, or with `B`,
+and a ring follows the pointer at the nib's true size while it is on.
 
 Drawing stays cheap because the rings and the treated artwork are cached as one
 base layer, so a drag redraws only the strokes on top — about 0.4ms a frame rather

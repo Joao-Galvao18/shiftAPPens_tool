@@ -76,7 +76,7 @@
 
   function preparedSource(img, S, token) {
     if (!img) return null;
-    const key = [token, S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather].join('|');
+    const key = token + '|' + S.bgMode;
     if (srcCache.key === key) return srcCache.val;
     const val = S.bgMode === 'off' ? img : BG.apply(img, S);
     srcCache = { key: key, val: val };
@@ -127,14 +127,6 @@
     return { x: p.x / iw, y: p.y / ih, inside: p.x >= 0 && p.y >= 0 && p.x < iw && p.y < ih };
   }
 
-  /* How far the strokes reach beyond the silhouette, in canvas pixels. Alignment
-     uses it so "align left" puts the outermost stroke against the edge rather
-     than pushing it off the canvas. */
-  function strokeExtent(S, unit) {
-    const bands = ringBands(S, unit, Math.min(S.ringCount, MAXCODE));
-    return bands.max + Math.max(0, S.maskExpand / 100 * unit);
-  }
-
   /* Axis-aligned bounding box of the placed subject, in canvas pixels. The four
      corners go through the same matrix the render uses, so rotation is handled. */
   function subjectRect(img, S, W, H, token) {
@@ -159,19 +151,6 @@
     if (!img) return 1;
     const m = placementMatrix(img, W, H, S, computeUnit(S.basis, W, H));
     return Math.hypot(m.a, m.b);
-  }
-
-  /* colour under a canvas point, read from the ORIGINAL image so the eyedropper
-     keeps working after the background has been knocked out */
-  function pickColor(img, S, W, H, px, py) {
-    const q = canvasToSource(img, S, W, H, px, py);
-    if (!q || !q.inside) return null;
-    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-    const c = U.createCanvas(1, 1);
-    const x = c.getContext('2d');
-    x.drawImage(img, Math.floor(q.x * iw), Math.floor(q.y * ih), 1, 1, 0, 0, 1, 1);
-    const d = x.getImageData(0, 0, 1, 1).data;
-    return U.rgb2hex([d[0], d[1], d[2]]);
   }
 
   /* ---------- 2. silhouette mask + signed distance field ---------- */
@@ -522,7 +501,7 @@
 
   function fieldKey(S, W, H, token) {
     return [W, H, S.basis, S.fit, S.fitSubject, S.imgScale, S.imgX, S.imgY, S.rotate, S.flipH, S.flipV,
-      S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather,
+      S.bgMode,
       S.maskSource, S.maskThreshold, S.maskInvert, S.maskFillHoles, S.maskSmooth, token].join('|');
   }
 
@@ -654,8 +633,6 @@
     canvasToSource: canvasToSource,
     sourceScale: sourceScale,
     subjectRect: subjectRect,
-    strokeExtent: strokeExtent,
-    pickColor: pickColor,
     preparedSource: preparedSource,
     clearCache: function () { cache = { key: null }; srcCache = { key: null }; baseCache = { key: null }; }
   };

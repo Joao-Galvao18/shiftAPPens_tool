@@ -204,17 +204,6 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 }
 .pill.dim{color:var(--ink-3)}
 
-/* tool strip */
-#tools{display:inline-flex; border:1px solid var(--line-2); border-radius:5px; overflow:hidden}
-#tools button{
-  border:0; border-left:1px solid var(--line-2); background:var(--paper); color:var(--ink-2);
-  cursor:pointer; font:400 11px/1 var(--sans); padding:6px 9px; white-space:nowrap;
-}
-#tools button:first-child{border-left:0}
-#tools button:hover{background:var(--ground); color:var(--ink)}
-#tools button.on{background:var(--pink); color:#fff}
-#tools button:focus-visible{outline:none; box-shadow:inset 0 0 0 2px rgba(28,174,166,.55)}
-
 #viewport{
   flex:1 1 auto; display:flex; align-items:center; justify-content:center;
   overflow:hidden; padding:26px; background:var(--sunken);
@@ -224,7 +213,6 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 #view{display:block}
 #cursor{position:absolute; left:0; top:0; pointer-events:none}
 #board.tool #view{cursor:none}
-#board.picking #view{cursor:crosshair}
 
 #status{
   min-height:24px; padding:5px 12px; font-size:10.5px; color:var(--ink-2);

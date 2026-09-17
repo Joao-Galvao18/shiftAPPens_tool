@@ -34,8 +34,7 @@
       posterize: 'Posterize', artInvert: 'Invert',
       grainAmount: 'Amount', grainScale: 'Grain size', grainMono: 'Monochrome', seed: 'Noise seed',
       exportScale: 'PNG scale', svgRes: 'SVG trace detail', svgSimplify: 'SVG smoothing',
-      bgMode: 'Remove', bgKeyColor: 'Colour to remove', bgTolerance: 'Tolerance',
-      bgContiguous: 'Only from the edges inwards', bgFeather: 'Soften edge',
+      bgToggle: 'Remove background', bgToggleOn: 'Put the background back',
       halftoneAngle: 'Screen angle', halftoneShape: 'Dot shape',
       brushColor: 'Colour', brushWidth: 'Nib width', brushType: 'Brush'
     },
@@ -50,9 +49,8 @@
       posterize: '0 = off',
       seed: 'Starting number for the random pattern used by grain and by the Random noise dither. The same seed always draws the same speckle, so the preview and the export match; change it to reshuffle. It has no effect when grain is 0 and the dither is not Random noise.',
       svgSimplify: 'Higher = fewer points, softer curves.',
-      align: 'Snaps the subject to an edge or the centre. The space the strokes need is counted in, so the outermost stroke lands against the edge instead of off the canvas.',
-      bgMode: 'Auto reads the colour from the four corners. Pick a colour lets you sample one with the eyedropper in the toolbar.',
-      bgContiguous: 'On, it only eats background connected to the border, so a colour that also appears inside the subject survives. Off, it removes that colour everywhere.',
+      bgToggle: 'Reads the backdrop colour from the four corners and lifts it out from the edges inwards, judging how much slack to allow from how closely the corners agree. Best on a plain or evenly lit backdrop.',
+      align: 'Snaps the subject to an edge or the centre. Strokes may bleed past the edge; lower Scale if you want them to stay inside.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
     },
@@ -101,12 +99,8 @@
       exportFail: 'Export failed: ',
       svgFail: 'SVG export failed: ',
       heavy: (mp) => 'Heads up: export is ' + mp + ' megapixels — it may take a while.',
-      tPan: 'Move', tPaint: 'Draw', tErase: 'Erase', tRestore: 'Restore', tPick: 'Pick colour',
-      picked: (c) => 'Background colour set to ' + c,
-      pickFail: 'That point is outside the photo.',
       cleared: 'Cleared.',
-      hintPaint: 'Drag on the artboard to draw.',
-      hintPick: 'Click the colour you want gone.'
+      hintPaint: 'Drag on the artboard to draw.'
     }
   };
 
@@ -140,8 +134,7 @@
       posterize: 'Posterizar', artInvert: 'Inverter',
       grainAmount: 'Quantidade', grainScale: 'Tamanho do grão', grainMono: 'Monocromático', seed: 'Semente do ruído',
       exportScale: 'Escala do PNG', svgRes: 'Detalhe do traçado SVG', svgSimplify: 'Suavização do SVG',
-      bgMode: 'Remover', bgKeyColor: 'Cor a remover', bgTolerance: 'Tolerância',
-      bgContiguous: 'Só das margens para dentro', bgFeather: 'Suavizar limite',
+      bgToggle: 'Remover fundo', bgToggleOn: 'Repor o fundo',
       halftoneAngle: 'Ângulo da trama', halftoneShape: 'Forma do ponto',
       brushColor: 'Cor', brushWidth: 'Espessura do traço', brushType: 'Pincel'
     },
@@ -156,9 +149,8 @@
       posterize: '0 = desligado',
       seed: 'Número inicial do padrão aleatório usado pelo grão e pelo pontilhado Ruído aleatório. A mesma semente desenha sempre o mesmo salpico, por isso a pré-visualização e a exportação coincidem; altere-a para baralhar. Não tem efeito quando o grão está a 0 e o pontilhado não é Ruído aleatório.',
       svgSimplify: 'Mais alto = menos pontos, curvas mais suaves.',
-      align: 'Encosta o motivo a uma margem ou ao centro. O espaço de que os contornos precisam entra na conta, por isso o contorno mais exterior fica encostado à margem em vez de sair da tela.',
-      bgMode: 'O automático lê a cor dos quatro cantos. Escolher uma cor permite recolhê-la com o conta-gotas na barra de ferramentas.',
-      bgContiguous: 'Ligado, só come o fundo ligado à margem, por isso uma cor que também apareça dentro do motivo sobrevive. Desligado, remove essa cor em todo o lado.',
+      bgToggle: 'Lê a cor do fundo pelos quatro cantos e retira-a das margens para dentro, ajustando a margem de erro conforme os cantos concordem entre si. Funciona melhor com fundos lisos ou de iluminação uniforme.',
+      align: 'Encosta o motivo a uma margem ou ao centro. Os contornos podem sair pela margem; reduza a Escala se os quiser manter dentro da tela.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
     },
@@ -207,12 +199,8 @@
       exportFail: 'Falha ao exportar: ',
       svgFail: 'Falha ao exportar SVG: ',
       heavy: (mp) => 'Atenção: a exportação tem ' + mp + ' megapíxeis — pode demorar.',
-      tPan: 'Mover', tPaint: 'Desenhar', tErase: 'Apagar', tRestore: 'Restaurar', tPick: 'Recolher cor',
-      picked: (c) => 'Cor de fundo definida como ' + c,
-      pickFail: 'Esse ponto está fora da fotografia.',
       cleared: 'Limpo.',
-      hintPaint: 'Arraste sobre a prancha para desenhar.',
-      hintPick: 'Clique na cor que quer eliminar.'
+      hintPaint: 'Arraste sobre a prancha para desenhar.'
     }
   };
 

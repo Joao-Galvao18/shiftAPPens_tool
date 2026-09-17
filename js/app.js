@@ -52,9 +52,8 @@
       haloUseBg: true, haloColor: '#ffffff',
       fillUseBg: true, fillColor: '#ffffff',
       innerRings: 0, aa: true,
-      // background removal
-      bgMode: 'off', bgKeyColor: '#ffffff', bgTolerance: 12,
-      bgContiguous: true, bgFeather: 0.15,
+      // background removal — one switch, everything else read from the picture
+      bgMode: 'off',
       // artwork
       artMode: 'photo', artOpacity: 100, brightness: 0, contrast: 10, saturation: 100,
       artInvert: false, posterize: 0,
@@ -140,11 +139,13 @@
         },
         {
           id: 'bg', items: [
-            { k: 'bgMode', t: 'select', hint: true, o: [['off', 'bg.off'], ['auto', 'bg.auto'], ['color', 'bg.color']] },
-            { k: 'bgKeyColor', t: 'color', show: s => s.bgMode === 'color' },
-            { k: 'bgTolerance', t: 'range', min: 0, max: 100, step: 0.5, u: '%', show: s => s.bgMode !== 'off' },
-            { k: 'bgFeather', t: 'range', min: 0, max: 3, step: 0.01, u: '%', show: s => s.bgMode !== 'off' },
-            { k: 'bgContiguous', t: 'check', hint: true, show: s => s.bgMode !== 'off' }
+            {
+              k: 'bgToggle', t: 'button', hint: true,
+              act: () => {
+                S.bgMode = S.bgMode === 'off' ? 'auto' : 'off';
+                refresh(); scheduleRender(); save();
+              }
+            }
           ]
         },
         {
@@ -205,7 +206,7 @@
   let rafId = 0;
   let controls = [];
   let srcLabel = null;   // null = the bundled example, else the uploaded file's name
-  let TOOL = 'pan';      // pan | paint | pick
+  let TOOL = 'pan';      // pan | paint
   let drawing = null;
 
   const $ = sel => document.querySelector(sel);
@@ -261,12 +262,6 @@
     $('#exportSvg').textContent = t('ui.svg');
     $('#stage').dataset.drop = t('ui.dropOver');
     $('#srcinfo').textContent = srcLabel === null ? t('ui.exampleLoaded') : srcLabel;
-    const names = { pan: 'tPan', paint: 'tPaint', pick: 'tPick' };
-    [...document.querySelectorAll('#tools button')].forEach(b => {
-      b.textContent = t('ui.' + names[b.dataset.tool]);
-      b.classList.toggle('on', b.dataset.tool === TOOL);
-      b.setAttribute('aria-pressed', b.dataset.tool === TOOL);
-    });
     document.documentElement.lang = I18N.getLang();
     [...document.querySelectorAll('#lang button')].forEach(b => {
       b.classList.toggle('on', b.dataset.lang === I18N.getLang());
@@ -409,18 +404,18 @@
     box.appendChild(add);
   }
 
-  /* Move the image so the subject — plus the space its strokes need — sits against
-     the chosen edge. Aligning left should not push the outermost stroke off. */
+  /* Move the image so the subject itself sits against the chosen edge. An earlier
+     version also reserved room for the strokes, but at ordinary scales that made
+     the padded box taller than the canvas and every position landed in the same
+     place. Strokes may now bleed off the edge — lower Scale if you don't want
+     that. */
   function alignImage(hx, vy) {
     const c = Engine.canvasPx(S);
     const r = Engine.subjectRect(IMG, S, c.W, c.H, TOKEN);
     if (!r) return;
     const unit = Engine.computeUnit(S.basis, c.W, c.H);
-    const pad = Engine.strokeExtent(S, unit);
-    const x0 = r.x - pad, y0 = r.y - pad;
-    const w = r.w + pad * 2, h = r.h + pad * 2;
-    S.imgX = U.clamp(S.imgX + (hx * (c.W - w) - x0) / unit * 100, -150, 150);
-    S.imgY = U.clamp(S.imgY + (vy * (c.H - h) - y0) / unit * 100, -150, 150);
+    S.imgX = U.clamp(S.imgX + (hx * (c.W - r.w) - r.x) / unit * 100, -150, 150);
+    S.imgY = U.clamp(S.imgY + (vy * (c.H - r.h) - r.y) / unit * 100, -150, 150);
     refresh(); scheduleRender(); save();
   }
 
@@ -453,6 +448,10 @@
         if (it.k === 'drawToggle') {
           it._input.textContent = t(TOOL === 'paint' ? 'l.drawToggleOn' : 'l.drawToggle');
           it._input.classList.toggle('active', TOOL === 'paint');
+        } else if (it.k === 'bgToggle') {
+          const on = S.bgMode !== 'off';
+          it._input.textContent = t(on ? 'l.bgToggleOn' : 'l.bgToggle');
+          it._input.classList.toggle('active', on);
         }
         return;
       }
@@ -605,10 +604,8 @@
     TOOL = name;
     const board = $('#board');
     board.classList.toggle('tool', name === 'paint');
-    board.classList.toggle('picking', name === 'pick');
     if (name !== 'paint') clearCursor();
-    const hints = { paint: 'hintPaint', pick: 'hintPick' };
-    status(hints[name] ? t('ui.' + hints[name]) : '');
+    status(name === 'paint' ? t('ui.hintPaint') : '');
     applyStaticText();
     refresh();
   }
@@ -640,20 +637,8 @@
   }
 
   function beginStroke(e) {
-    if (TOOL === 'pan') return;
+    if (TOOL !== 'paint') return;
     const q = pointerPos(e);
-
-    if (TOOL === 'pick') {
-      const hex = Engine.pickColor(IMG, S, view.width, view.height, q.x, q.y);
-      if (!hex) { status(t('ui.pickFail'), true); return; }
-      S.bgKeyColor = hex;
-      if (S.bgMode !== 'color') S.bgMode = 'color';
-      if (S.tab !== 'image') { S.tab = 'image'; buildUI(); }
-      refresh(); scheduleRender(); save();
-      status(t('ui.picked', hex));
-      return;
-    }
-
     view.setPointerCapture(e.pointerId);
     drawing = {
       color: S.brushColor, width: S.brushWidth, type: S.brushType,
@@ -682,9 +667,6 @@
   }
 
   function bindTools() {
-    [...document.querySelectorAll('#tools button')].forEach(b => {
-      b.onclick = () => setTool(b.dataset.tool);
-    });
     view.addEventListener('pointerdown', beginStroke);
     view.addEventListener('pointermove', extendStroke);
     view.addEventListener('pointerup', endStroke);
@@ -699,8 +681,7 @@
         scheduleRender(); save();
         return;
       }
-      const keys = { v: 'pan', b: 'paint', i: 'pick' };
-      if (keys[e.key]) setTool(keys[e.key]);
+      if (e.key === 'b') setTool(TOOL === 'paint' ? 'pan' : 'paint');
     });
   }
 

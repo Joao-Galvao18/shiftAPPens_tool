@@ -28,6 +28,29 @@
   /* 0..1, 1 = opposite corners of the RGB cube */
   const MAXD = Math.sqrt(3 * 255 * 255);
 
+  /* One button means no tolerance slider, so pick one from the picture: when the
+     four corners agree the background is flat and a tight threshold is safest;
+     when they disagree it is lit or graded and needs more slack. */
+  function autoTolerance(data, w, h, key) {
+    const n = Math.max(2, Math.round(Math.min(w, h) * 0.04));
+    let worst = 0;
+    const corner = (x0, y0) => {
+      let r = 0, g = 0, b = 0, c = 0;
+      for (let y = y0; y < y0 + n; y++) {
+        for (let x = x0; x < x0 + n; x++) {
+          const p = (y * w + x) * 4;
+          if (data[p + 3] < 128) continue;
+          r += data[p]; g += data[p + 1]; b += data[p + 2]; c++;
+        }
+      }
+      if (!c) return;
+      const d = Math.sqrt((r / c - key[0]) ** 2 + (g / c - key[1]) ** 2 + (b / c - key[2]) ** 2);
+      if (d > worst) worst = d;
+    };
+    corner(0, 0); corner(w - n, 0); corner(0, h - n); corner(w - n, h - n);
+    return U.clamp(0.10 + (worst / MAXD) * 2.5, 0.10, 0.34);
+  }
+
   function removed(data, w, h, key, tol, contiguous) {
     const n = w * h;
     const out = new Float32Array(n);
@@ -87,9 +110,9 @@
 
     let alpha;
     {
-      const key = S.bgMode === 'auto' ? cornerKey(data, iw, ih) : U.hex2rgb(S.bgKeyColor);
-      const cut = removed(data, iw, ih, key, S.bgTolerance / 100, S.bgContiguous);
-      const feather = S.bgFeather / 100 * Math.min(iw, ih);
+      const key = cornerKey(data, iw, ih);
+      const cut = removed(data, iw, ih, key, autoTolerance(data, iw, ih, key), true);
+      const feather = 0.0015 * Math.min(iw, ih);
       if (feather > 0.3) EDT.blur(cut, iw, ih, feather);
       alpha = new Float32Array(n);
       for (let i = 0; i < n; i++) alpha[i] = orig[i] * (1 - U.clamp(cut[i], 0, 1));
