@@ -128,6 +128,14 @@
     return { x: p.x / iw, y: p.y / ih, inside: p.x >= 0 && p.y >= 0 && p.x < iw && p.y < ih };
   }
 
+  /* how many canvas pixels one source pixel covers, so the UI can show the
+     background brush at its true size on the artboard */
+  function sourceScale(img, S, W, H) {
+    if (!img) return 1;
+    const m = placementMatrix(img, W, H, S, computeUnit(S.basis, W, H));
+    return Math.hypot(m.a, m.b);
+  }
+
   /* colour under a canvas point, read from the ORIGINAL image so the eyedropper
      keeps working after the background has been knocked out */
   function pickColor(img, S, W, H, px, py) {
@@ -505,18 +513,47 @@
     return cache.val;
   }
 
-  function render(S, img, W, H, token) {
-    const unit = computeUnit(S.basis, W, H);
+  /* Everything under the drawing layer: rings plus the treated artwork. Cached,
+     so dragging a brush redraws only the cheap top layers instead of re-running
+     the distance transform and the halftone screen on every pointer move. */
+  let baseCache = { key: null };
+
+  function baseKey(S, W, H, token) {
+    const o = {};
+    const skip = {
+      paint: 1, lang: 1, sizePreset: 1, previewQuality: 1,
+      grainAmount: 1, grainScale: 1, grainMono: 1,
+      brushColor: 1, brushWidth: 1, brushType: 1, bgBrushSize: 1,
+      exportScale: 1, svgRes: 1, svgSimplify: 1,
+      bgBrush: 1   // represented by bgRev, so a long drag stays cheap to key
+    };
+    for (const k in S) if (!skip[k]) o[k] = S[k];
+    return W + 'x' + H + '|' + token + '|' + JSON.stringify(o);
+  }
+
+  function baseLayer(S, img, W, H, token, unit) {
+    const key = baseKey(S, W, H, token);
+    if (baseCache.key === key) return baseCache.val;
     const f = field(S, img, W, H, token);
-    const out = U.createCanvas(W, H);
-    const ctx = out.getContext('2d');
-    ctx.putImageData(paintRings(f.sdf, W, H, S, unit), 0, 0);
+    const base = U.createCanvas(W, H);
+    const bx = base.getContext('2d');
+    bx.putImageData(paintRings(f.sdf, W, H, S, unit), 0, 0);
     const art = buildArt(f.placed, f.mask, W, H, S, unit);
     if (art) {
-      ctx.globalAlpha = U.clamp(S.artOpacity / 100, 0, 1);
-      ctx.drawImage(art, 0, 0);
-      ctx.globalAlpha = 1;
+      bx.globalAlpha = U.clamp(S.artOpacity / 100, 0, 1);
+      bx.drawImage(art, 0, 0);
+      bx.globalAlpha = 1;
     }
+    // don't hold on to enormous export canvases
+    if (W * H <= 16e6) baseCache = { key: key, val: base };
+    return base;
+  }
+
+  function render(S, img, W, H, token) {
+    const unit = computeUnit(S.basis, W, H);
+    const out = U.createCanvas(W, H);
+    const ctx = out.getContext('2d');
+    ctx.drawImage(baseLayer(S, img, W, H, token, unit), 0, 0);
     Paint.render(ctx, S.paint, W, H, unit);
     grain(ctx, W, H, S, unit);
     return out;
@@ -591,8 +628,9 @@
     computeUnit: computeUnit,
     ringBands: ringBands,
     canvasToSource: canvasToSource,
+    sourceScale: sourceScale,
     pickColor: pickColor,
     preparedSource: preparedSource,
-    clearCache: function () { cache = { key: null }; srcCache = { key: null }; }
+    clearCache: function () { cache = { key: null }; srcCache = { key: null }; baseCache = { key: null }; }
   };
 })(window);

@@ -113,12 +113,25 @@ paths (the image itself stays raster inside the SVG, at full export resolution).
 ## Tools on the artboard
 
 The strip above the canvas switches what a drag does. Keyboard: `V` move, `B` draw,
-`E` erase, `R` restore, `I` pick colour.
+`E` erase, `R` restore, `I` pick colour. A ring follows the pointer at the nib's
+true size.
 
-The halftone screen is evaluated at full render resolution rather than by
-downsampling, with the cell size taken as a percentage of the basis — so the screen
-ruling scales with the canvas instead of dissolving into noise on a large export.
-Traditional screens sit at 45°, where the dot pattern is least visible.
+Drawing is cheap because the rings and the treated artwork are cached as one base
+layer, so a drag redraws only the strokes on top: about 0.4ms a frame instead of
+re-running the distance transform and the halftone screen.
+
+The background brushes cannot work that way, since punching a hole in the photo
+changes the silhouette and therefore everything downstream. They paint a live
+trail on an overlay while you drag and commit once on release.
+
+## Interface
+
+Light, compact, and built on the project palette. None of the five colours pass
+4.5:1 as text on white, so they are used at full strength as fills with dark text
+on top, and small coloured text uses a same-hue variant darkened to 4.5:1. One job
+each: yellow the primary action, teal anything interactive, pink the active tool
+and the computed pixel values, green the format-match confirmation, red errors and
+destructive actions.
 
 ## Language
 

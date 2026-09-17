@@ -6,15 +6,13 @@
 <title>Stroke tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div id="app">
 
   <aside id="side">
-    <div class="masthead" aria-hidden="true"></div>
-
     <div class="drop">
       <input type="file" id="file" accept="image/*" hidden>
       <button id="pick" class="btn primary">Upload image</button>
@@ -54,7 +52,7 @@
       <button id="exportPng" class="btn small">Export PNG</button>
       <button id="exportSvg" class="btn small">Export SVG</button>
     </div>
-    <div id="viewport"><canvas id="view"></canvas></div>
+    <div id="viewport"><div id="board"><canvas id="view"></canvas><canvas id="cursor"></canvas></div></div>
     <div id="status"></div>
   </main>
 

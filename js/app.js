@@ -469,11 +469,21 @@
 
   function fitView() {
     const vp = $('#viewport');
-    const pad = 80;
+    const pad = 64;
     const aw = vp.clientWidth - pad, ah = vp.clientHeight - pad;
     const s = Math.min(aw / view.width, ah / view.height, 4);
-    view.style.width = (view.width * s) + 'px';
-    view.style.height = (view.height * s) + 'px';
+    const w = Math.round(view.width * s), h = Math.round(view.height * s);
+    view.style.width = w + 'px';
+    view.style.height = h + 'px';
+    const board = $('#board'), cur = $('#cursor');
+    if (board) { board.style.width = w + 'px'; board.style.height = h + 'px'; }
+    if (cur) {
+      cur.style.width = w + 'px';
+      cur.style.height = h + 'px';
+      if (cur.width !== view.width || cur.height !== view.height) {
+        cur.width = view.width; cur.height = view.height;
+      }
+    }
   }
 
   function status(msg, bad) {
@@ -548,22 +558,97 @@
 
   /* ---------------- artboard tools ---------------- */
 
-  /* pointer -> canvas coords, in the render's own pixel space */
+  /* Pointer -> canvas pixel space. The canvas is displayed at a CSS size that
+     differs from its backing store, so scale by the CONTENT box: using the
+     border-box rect offsets every point by the border width. */
   function pointerPos(e) {
     const r = view.getBoundingClientRect();
+    // clientWidth/Height round to whole pixels; the rect does not, so derive the
+    // content box from the rect and only discount the border via clientLeft/Top
+    const bx = view.clientLeft, by = view.clientTop;
+    const cw = r.width - bx * 2 || 1;
+    const ch = r.height - by * 2 || 1;
     return {
-      x: (e.clientX - r.left) / r.width * view.width,
-      y: (e.clientY - r.top) / r.height * view.height
+      x: (e.clientX - r.left - bx) / cw * view.width,
+      y: (e.clientY - r.top - by) / ch * view.height
     };
   }
 
+  const BRUSH_TOOLS = { paint: 1, erase: 1, restore: 1 };
+
   function setTool(name) {
     TOOL = name;
-    view.classList.toggle('drawing', name === 'paint' || name === 'erase' || name === 'restore');
-    view.classList.toggle('picking', name === 'pick');
+    const board = $('#board');
+    board.classList.toggle('tool', !!BRUSH_TOOLS[name]);
+    board.classList.toggle('picking', name === 'pick');
+    if (!BRUSH_TOOLS[name]) clearCursor();
     const hints = { paint: 'hintPaint', erase: 'hintErase', restore: 'hintRestore', pick: 'hintPick' };
     status(hints[name] ? t('ui.' + hints[name]) : '');
     applyStaticText();
+  }
+
+  /* nib diameter in canvas pixels, for both the ring and the live trail */
+  function brushDiameter() {
+    let d;
+    if (TOOL === 'paint') {
+      d = S.brushWidth / 100 * Engine.computeUnit(S.basis, view.width, view.height);
+    } else if (IMG) {
+      // the background brush is sized against the photo, so scale it through the
+      // placement to show its true footprint on the artboard
+      const iw = IMG.naturalWidth || IMG.width, ih = IMG.naturalHeight || IMG.height;
+      const inSource = S.bgBrushSize / 100 * Math.min(iw, ih);
+      d = inSource * Engine.sourceScale(IMG, S, view.width, view.height);
+    } else {
+      d = 20;
+    }
+    return Math.max(4, Math.min(d, Math.max(view.width, view.height) * 2));
+  }
+
+  /* --- brush cursor: without it you cannot tell where the nib is or how big --- */
+  function clearCursor() {
+    const c = $('#cursor');
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  }
+
+  function drawCursor(e) {
+    const c = $('#cursor');
+    if (!BRUSH_TOOLS[TOOL]) return;
+    if (c.width !== view.width || c.height !== view.height) {
+      c.width = view.width; c.height = view.height;
+    }
+    const x = c.getContext('2d');
+    x.clearRect(0, 0, c.width, c.height);
+    const q = pointerPos(e);
+
+    // live trail for the background brushes: knocking a hole in the photo means
+    // redoing the removal and the distance field, far too slow to do per frame,
+    // so show the mark immediately and commit it when the drag ends
+    if (drawing && drawing.kind === 'bg' && drawing.trail && drawing.trail.length) {
+      x.save();
+      x.globalAlpha = 0.5;
+      x.strokeStyle = drawing.stroke.kind === 'erase' ? '#F4492E' : '#22945A';
+      x.lineCap = 'round';
+      x.lineJoin = 'round';
+      x.lineWidth = brushDiameter();
+      const tr = drawing.trail;
+      x.beginPath();
+      x.moveTo(tr[0][0], tr[0][1]);
+      for (let i = 1; i < tr.length; i++) x.lineTo(tr[i][0], tr[i][1]);
+      x.stroke();
+      x.restore();
+    }
+
+    const d = brushDiameter();
+
+    x.lineWidth = Math.max(1, view.width / 600);
+    x.strokeStyle = TOOL === 'erase' ? '#F4492E' : TOOL === 'restore' ? '#22945A' : '#16191A';
+    x.beginPath();
+    x.arc(q.x, q.y, d / 2, 0, Math.PI * 2);
+    x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,.85)';
+    x.beginPath();
+    x.arc(q.x, q.y, d / 2 + x.lineWidth, 0, Math.PI * 2);
+    x.stroke();
   }
 
   function beginStroke(e) {
@@ -575,7 +660,6 @@
       if (!hex) { status(t('ui.pickFail'), true); return; }
       S.bgKeyColor = hex;
       if (S.bgMode !== 'color') S.bgMode = 'color';
-      Engine.clearCache();
       refresh(); scheduleRender(); save();
       status(t('ui.picked', hex));
       return;
@@ -595,44 +679,53 @@
     } else {
       // erase / restore act on the photo, so points live in source-image space
       const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
-      if (!sp) return;
+      if (!sp) { try { view.releasePointerCapture(e.pointerId); } catch (err) { } return; }
       drawing = {
         kind: 'bg',
+        trail: [[q.x, q.y]],
         stroke: { kind: TOOL, size: S.bgBrushSize, points: [[sp.x, sp.y]] }
       };
       S.bgBrush.push(drawing.stroke);
-      S.bgRev++;
+      drawCursor(e);
+      return;                     // committed on pointerup, not now
     }
     scheduleRender();
   }
 
   function extendStroke(e) {
+    drawCursor(e);
     if (!drawing) return;
     const q = pointerPos(e);
     const pts = drawing.stroke.points;
+
     if (drawing.kind === 'paint') {
       const nx = q.x / view.width, ny = q.y / view.height;
       const last = pts[pts.length - 1];
       if (Math.hypot(nx - last[0], ny - last[1]) < 0.002) return;
       pts.push([nx, ny]);
-    } else {
-      const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
-      if (!sp) return;
-      const last = pts[pts.length - 1];
-      if (Math.hypot(sp.x - last[0], sp.y - last[1]) < 0.002) return;
-      pts.push([sp.x, sp.y]);
-      S.bgRev++;
-      Engine.clearCache();
+      scheduleRender();          // cheap: the base layer is cached
+      return;
     }
-    scheduleRender();
+
+    const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
+    if (!sp) return;
+    const last = pts[pts.length - 1];
+    if (Math.hypot(sp.x - last[0], sp.y - last[1]) < 0.003) return;
+    pts.push([sp.x, sp.y]);
+    drawing.trail.push([q.x, q.y]);
+    drawCursor(e);               // the trail is the feedback; no re-render yet
   }
 
   function endStroke(e) {
     if (!drawing) return;
-    if (drawing.kind === 'bg') { S.bgRev++; Engine.clearCache(); }
+    const wasBg = drawing.kind === 'bg';
     drawing = null;
     try { view.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
-    scheduleRender();
+    if (wasBg) {
+      S.bgRev++;                  // one real pass now the drag is over
+      clearCursor();
+      scheduleRender();
+    }
     save();
   }
 
@@ -644,11 +737,9 @@
     view.addEventListener('pointermove', extendStroke);
     view.addEventListener('pointerup', endStroke);
     view.addEventListener('pointercancel', endStroke);
+    view.addEventListener('pointerleave', () => { if (!drawing) clearCursor(); });
 
-    $('#undoDraw').onclick = () => {
-      S.paint.pop();
-      scheduleRender(); save();
-    };
+    $('#undoDraw').onclick = () => { S.paint.pop(); scheduleRender(); save(); };
     $('#clearDraw').onclick = () => {
       S.paint = [];
       scheduleRender(); save();
@@ -657,7 +748,6 @@
     $('#clearBg').onclick = () => {
       S.bgBrush = [];
       S.bgRev++;
-      Engine.clearCache();
       scheduleRender(); save();
       status(t('ui.cleared'));
     };
@@ -668,6 +758,7 @@
         e.preventDefault();
         S.paint.pop();
         scheduleRender(); save();
+        return;
       }
       const keys = { v: 'pan', b: 'paint', e: 'erase', r: 'restore', i: 'pick' };
       if (keys[e.key]) setTool(keys[e.key]);
