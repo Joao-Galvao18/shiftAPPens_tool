@@ -1,138 +1,204 @@
 /* bg.js — background removal.
 
-   Everything here works in SOURCE-IMAGE space, which is fixed per file and so is
-   already independent of the canvas size. Brush strokes are stored normalised to
-   [0..1] of the source image, so they survive a change of canvas or export scale.
+   The first version keyed on one colour: the average of the four corners. That
+   fails on anything but a flat backdrop — average two different corners and you
+   get a colour that matches neither, so it either eats nothing or eats the
+   subject. This version:
+
+     1. builds a small PALETTE of background colours from the whole border ring,
+        so a graded or two-tone backdrop is described rather than averaged away;
+     2. picks its threshold from how far those border pixels actually scatter
+        around that palette, instead of a guess;
+     3. grows inward from the edges, so a colour that also appears inside the
+        subject survives;
+     4. gives edge pixels PARTIAL alpha across a soft band rather than a hard
+        cut, which is what stops the cut-out looking stamped;
+     5. drops stray specks left behind in the background.
+
+   It works in source-image space, which is fixed per file and so already
+   independent of canvas size.
 */
 (function (g) {
   'use strict';
 
-  /* average colour of the four corners, used by Auto */
-  function cornerKey(data, w, h) {
-    const n = Math.max(2, Math.round(Math.min(w, h) * 0.04));
-    let r = 0, gg = 0, b = 0, c = 0;
-    const box = (x0, y0) => {
-      for (let y = y0; y < y0 + n; y++) {
-        for (let x = x0; x < x0 + n; x++) {
-          const p = (y * w + x) * 4;
-          if (data[p + 3] < 128) continue;
-          r += data[p]; gg += data[p + 1]; b += data[p + 2]; c++;
-        }
-      }
-    };
-    box(0, 0); box(w - n, 0); box(0, h - n); box(w - n, h - n);
-    if (!c) return [255, 255, 255];
-    return [r / c, gg / c, b / c];
+  const MAXD = Math.sqrt(3 * 255 * 255);   // corner-to-corner of the RGB cube
+
+  /* A picture that already carries real transparency is already a cut-out. */
+  function alreadyCutOut(data) {
+    let clear = 0, n = 0;
+    for (let i = 3; i < data.length; i += 4 * 29) { n++; if (data[i] < 200) clear++; }
+    return n > 0 && clear / n > 0.05;
   }
 
-  /* 0..1, 1 = opposite corners of the RGB cube */
-  const MAXD = Math.sqrt(3 * 255 * 255);
-
-  /* One button means no tolerance slider, so pick one from the picture: when the
-     four corners agree the background is flat and a tight threshold is safest;
-     when they disagree it is lit or graded and needs more slack. */
-  function autoTolerance(data, w, h, key) {
-    const n = Math.max(2, Math.round(Math.min(w, h) * 0.04));
-    let worst = 0;
-    const corner = (x0, y0) => {
-      let r = 0, g = 0, b = 0, c = 0;
-      for (let y = y0; y < y0 + n; y++) {
-        for (let x = x0; x < x0 + n; x++) {
-          const p = (y * w + x) * 4;
-          if (data[p + 3] < 128) continue;
-          r += data[p]; g += data[p + 1]; b += data[p + 2]; c++;
-        }
+  function borderVisit(w, h, fn) {
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.035));
+    const step = Math.max(1, Math.round(Math.min(w, h) / 320));
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        if (x < band || y < band || x >= w - band || y >= h - band) fn(x, y);
       }
-      if (!c) return;
-      const d = Math.sqrt((r / c - key[0]) ** 2 + (g / c - key[1]) ** 2 + (b / c - key[2]) ** 2);
-      if (d > worst) worst = d;
-    };
-    corner(0, 0); corner(w - n, 0); corner(0, h - n); corner(w - n, h - n);
-    return U.clamp(0.10 + (worst / MAXD) * 2.5, 0.10, 0.34);
-  }
-
-  function removed(data, w, h, key, tol, contiguous) {
-    const n = w * h;
-    const out = new Float32Array(n);
-    const kr = key[0], kg = key[1], kb = key[2];
-    const limit = tol * MAXD;
-
-    const near = (p) => {
-      const dr = data[p] - kr, dg = data[p + 1] - kg, db = data[p + 2] - kb;
-      return Math.sqrt(dr * dr + dg * dg + db * db) <= limit;
-    };
-
-    if (!contiguous) {
-      for (let i = 0, p = 0; i < n; i++, p += 4) if (near(p)) out[i] = 1;
-      return out;
     }
+  }
 
-    // flood fill inwards from every border pixel
+  /* Representative backdrop colours, by coarse colour bucket. Keeping several
+     means a gradient or a two-tone wall is matched at both ends. */
+  function bgPalette(data, w, h) {
+    const buckets = new Map();
+    borderVisit(w, h, (x, y) => {
+      const p = (y * w + x) * 4;
+      if (data[p + 3] < 128) return;
+      const key = ((data[p] >> 4) << 8) | ((data[p + 1] >> 4) << 4) | (data[p + 2] >> 4);
+      let b = buckets.get(key);
+      if (!b) { b = { n: 0, r: 0, g: 0, b: 0 }; buckets.set(key, b); }
+      b.n++; b.r += data[p]; b.g += data[p + 1]; b.b += data[p + 2];
+    });
+    const list = [...buckets.values()].sort((a, b) => b.n - a.n);
+    const total = list.reduce((s, b) => s + b.n, 0) || 1;
+    const pal = [];
+    let acc = 0;
+    for (const b of list) {
+      pal.push([b.r / b.n, b.g / b.n, b.b / b.n]);
+      acc += b.n / total;
+      if (pal.length >= 6 || acc > 0.92) break;
+    }
+    return pal.length ? pal : [[255, 255, 255]];
+  }
+
+  function nearest(data, p, pal) {
+    let best = Infinity;
+    for (let i = 0; i < pal.length; i++) {
+      const c = pal[i];
+      const dr = data[p] - c[0], dg = data[p + 1] - c[1], db = data[p + 2] - c[2];
+      const d = dr * dr + dg * dg + db * db;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  }
+
+  /* Threshold from the data: how far do border pixels really sit from the
+     palette? Kept deliberately TIGHT — a backdrop that genuinely varies is
+     handled by following it locally (below), not by opening this up. Widening
+     it instead is what let a graded backdrop swallow the subject. */
+  function toleranceFor(data, w, h, pal) {
+    const ds = [];
+    borderVisit(w, h, (x, y) => {
+      const p = (y * w + x) * 4;
+      if (data[p + 3] < 128) return;
+      ds.push(nearest(data, p, pal));
+    });
+    if (!ds.length) return MAXD * 0.05;
+    ds.sort((a, b) => a - b);
+    const p75 = ds[Math.min(ds.length - 1, Math.floor(ds.length * 0.75))];
+    return U.clamp(p75 * 1.15 + MAXD * 0.010, MAXD * 0.030, MAXD * 0.13);
+  }
+
+  /* Grow inward from the border. A pixel joins the background if it is close to
+     the palette, OR if it is barely different from the background pixel it was
+     reached from — which walks a gradient down smoothly while a hard colour step
+     (the subject's edge) stops it dead. The local rule is capped so a long chain
+     of small steps cannot drift all the way across the picture.
+     Returns how much of each pixel to remove, 0..1, soft across the boundary. */
+  function matte(data, w, h, pal, tol) {
+    const n = w * h;
+    const rem = new Float32Array(n);
     const seen = new Uint8Array(n);
     const stack = new Int32Array(n);
     let sp = 0;
-    const push = (i) => {
-      if (seen[i]) return;
-      seen[i] = 1;
-      if (!near(i * 4)) return;      // visited but not background: stop here
-      out[i] = 1;
-      stack[sp++] = i;
+    const hi = tol * 1.9;
+    const localTol = MAXD * 0.045;
+    const driftCap = tol * 3.5;
+
+    const coverage = (d) => {
+      if (d <= tol) return 1;
+      if (d >= hi) return 0;
+      const t = (d - tol) / (hi - tol);
+      return 1 - t * t * (3 - 2 * t);      // smoothstep, so edges ramp
     };
-    for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
-    for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+
+    const consider = (j, from) => {
+      if (seen[j]) return;
+      seen[j] = 1;
+      const p = j * 4;
+      if (data[p + 3] < 8) { rem[j] = 1; stack[sp++] = j; return; }
+      let d = nearest(data, p, pal);
+      if (d > tol && d <= driftCap && from >= 0) {
+        const q = from * 4;
+        const dr = data[p] - data[q], dg = data[p + 1] - data[q + 1], db = data[p + 2] - data[q + 2];
+        if (Math.sqrt(dr * dr + dg * dg + db * db) <= localTol) d = tol;   // gradient continues
+      }
+      const v = coverage(d);
+      if (v <= 0.04) return;               // solidly subject: stop here
+      rem[j] = v;
+      if (v > 0.3) stack[sp++] = j;        // only travel through confident background
+    };
+
+    for (let x = 0; x < w; x++) { consider(x, -1); consider((h - 1) * w + x, -1); }
+    for (let y = 0; y < h; y++) { consider(y * w, -1); consider(y * w + w - 1, -1); }
     while (sp > 0) {
       const i = stack[--sp];
       const x = i % w, y = (i / w) | 0;
-      if (x > 0) push(i - 1);
-      if (x < w - 1) push(i + 1);
-      if (y > 0) push(i - w);
-      if (y < h - 1) push(i + w);
+      if (x > 0) consider(i - 1, i);
+      if (x < w - 1) consider(i + 1, i);
+      if (y > 0) consider(i - w, i);
+      if (y < h - 1) consider(i + w, i);
     }
-    return out;
+    return rem;
   }
 
-  /* img (or canvas) -> canvas with the background knocked out */
+  /* Specks of backdrop the grow left behind get folded into the background. */
+  function despeckle(rem, w, h) {
+    const n = w * h;
+    const seen = new Uint8Array(n);
+    const stack = new Int32Array(n);
+    const minArea = Math.max(24, Math.round(n * 0.0006));
+    for (let s = 0; s < n; s++) {
+      if (seen[s] || rem[s] >= 0.5) continue;
+      let sp = 0, big = false;
+      const comp = [];
+      seen[s] = 1; stack[sp++] = s;
+      while (sp > 0) {
+        const i = stack[--sp];
+        if (!big) {
+          comp.push(i);
+          if (comp.length > minArea) { big = true; comp.length = 0; }
+        }
+        const x = i % w, y = (i / w) | 0;
+        const nb = (j) => { if (!seen[j] && rem[j] < 0.5) { seen[j] = 1; stack[sp++] = j; } };
+        if (x > 0) nb(i - 1);
+        if (x < w - 1) nb(i + 1);
+        if (y > 0) nb(i - w);
+        if (y < h - 1) nb(i + w);
+      }
+      if (!big) for (let k = 0; k < comp.length; k++) rem[comp[k]] = 1;
+    }
+  }
+
+  /* img (or canvas) -> canvas with the background lifted out */
   function apply(img, S) {
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
     const c = U.createCanvas(iw, ih);
     const x = c.getContext('2d');
     x.drawImage(img, 0, 0);
-
     if (S.bgMode === 'off') return c;
 
     const id = x.getImageData(0, 0, iw, ih);
     const data = id.data;
+    if (alreadyCutOut(data)) return c;     // nothing to do, and nothing to damage
+
+    const pal = bgPalette(data, iw, ih);
+    const tol = toleranceFor(data, iw, ih, pal);
+    const rem = matte(data, iw, ih, pal, tol);
+    despeckle(rem, iw, ih);
+    EDT.blur(rem, iw, ih, 0.0012 * Math.min(iw, ih));
+
     const n = iw * ih;
-
-    const orig = new Float32Array(n);
-    for (let i = 0, p = 3; i < n; i++, p += 4) orig[i] = data[p] / 255;
-
-    let alpha;
-    {
-      const key = cornerKey(data, iw, ih);
-      const cut = removed(data, iw, ih, key, autoTolerance(data, iw, ih, key), true);
-      const feather = 0.0015 * Math.min(iw, ih);
-      if (feather > 0.3) EDT.blur(cut, iw, ih, feather);
-      alpha = new Float32Array(n);
-      for (let i = 0; i < n; i++) alpha[i] = orig[i] * (1 - U.clamp(cut[i], 0, 1));
+    for (let i = 0, p = 3; i < n; i++, p += 4) {
+      data[p] = U.clamp(data[p] * (1 - U.clamp(rem[i], 0, 1)), 0, 255);
     }
-
-    for (let i = 0, p = 3; i < n; i++, p += 4) data[p] = U.clamp(alpha[i] * 255, 0, 255);
     x.putImageData(id, 0, 0);
     return c;
   }
 
-  /* what Auto would pick, so the UI can show it */
-  function autoKey(img) {
-    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-    const k = Math.min(1, 200 / Math.max(iw, ih));
-    const w = Math.max(4, Math.round(iw * k)), h = Math.max(4, Math.round(ih * k));
-    const c = U.createCanvas(w, h);
-    const x = c.getContext('2d');
-    x.drawImage(img, 0, 0, w, h);
-    return cornerKey(x.getImageData(0, 0, w, h).data, w, h);
-  }
-
-  g.BG = { apply: apply, autoKey: autoKey };
+  g.BG = { apply: apply };
 })(window);

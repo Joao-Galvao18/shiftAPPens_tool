@@ -57,7 +57,6 @@ body{
 #panels::-webkit-scrollbar{width:9px}
 #panels::-webkit-scrollbar-thumb{background:var(--line-2); border:3px solid var(--paper); border-radius:5px}
 
-.sidefoot{padding:9px 14px; border-top:1px solid var(--line); display:flex; gap:6px}
 
 /* ---------- canvas block (always visible) ---------- */
 .canvasBlock{
@@ -214,7 +213,8 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 #view{display:block}
 #cursor{position:absolute; left:0; top:0; pointer-events:none}
 #board.tool #view{cursor:none}
-#board.move #view{cursor:grab}
+#board.move #view{cursor:default}
+#board.over-image #view{cursor:grab}
 #board.grabbing #view{cursor:grabbing}
 #board.resizing #view{cursor:nwse-resize}
 

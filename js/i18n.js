@@ -14,7 +14,7 @@
     l: {
       sizePreset: 'Format', units: 'Units', cw: 'Width', ch: 'Height', dpi: 'DPI',
       basis: 'Scale strokes to', bg: 'Background', previewQuality: 'Preview quality',
-      align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
+      reset: 'Reset all', align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
       drawToggle: 'Start drawing', drawToggleOn: 'Stop drawing',
       undoDraw: 'Undo last stroke', clearDraw: 'Clear drawing', imgX: 'Offset X', imgY: 'Offset Y', rotate: 'Rotate',
       flipH: 'Flip horizontal', flipV: 'Flip vertical',
@@ -72,7 +72,9 @@
       'dm.floyd': 'Floyd–Steinberg', 'dm.noise': 'Random noise', 'dm.halftone': 'Halftone screen',
       'bg.off': 'Nothing', 'bg.auto': 'Auto (from corners)', 'bg.color': 'A colour I pick',
       'hs.dot': 'Round dot', 'hs.square': 'Square', 'hs.line': 'Line screen',
-      'bt.marker': 'Marker', 'bt.scribble': 'Scribble', 'bt.highlighter': 'Highlighter',
+      'bt.marker': 'Marker', 'bt.pen': 'Pen', 'bt.scribble': 'Scribble',
+      'bt.calligraphy': 'Calligraphy', 'bt.chalk': 'Chalk', 'bt.spray': 'Spray',
+      'bt.dashed': 'Dashed', 'bt.highlighter': 'Highlighter',
       'es.0.5': '0.5×', 'es.1': '1× (canvas size)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
       'sr.900': 'Draft', 'sr.1800': 'Normal', 'sr.3000': 'Fine', 'sr.4500': 'Maximum'
     },
@@ -114,7 +116,7 @@
     l: {
       sizePreset: 'Formato', units: 'Unidades', cw: 'Largura', ch: 'Altura', dpi: 'DPI',
       basis: 'Escalar contornos a', bg: 'Fundo', previewQuality: 'Qualidade da pré-visualização',
-      align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
+      reset: 'Repor tudo', align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
       drawToggle: 'Começar a desenhar', drawToggleOn: 'Parar de desenhar',
       undoDraw: 'Anular último traço', clearDraw: 'Limpar desenho', imgX: 'Deslocamento X', imgY: 'Deslocamento Y', rotate: 'Rodar',
       flipH: 'Espelhar na horizontal', flipV: 'Espelhar na vertical',
@@ -172,7 +174,9 @@
       'dm.floyd': 'Floyd–Steinberg', 'dm.noise': 'Ruído aleatório', 'dm.halftone': 'Trama de meio-tom',
       'bg.off': 'Nada', 'bg.auto': 'Automático (pelos cantos)', 'bg.color': 'Uma cor à minha escolha',
       'hs.dot': 'Ponto redondo', 'hs.square': 'Quadrado', 'hs.line': 'Trama de linhas',
-      'bt.marker': 'Marcador', 'bt.scribble': 'Rabisco', 'bt.highlighter': 'Marcador fluorescente',
+      'bt.marker': 'Marcador', 'bt.pen': 'Caneta', 'bt.scribble': 'Rabisco',
+      'bt.calligraphy': 'Caligrafia', 'bt.chalk': 'Giz', 'bt.spray': 'Spray',
+      'bt.dashed': 'Tracejado', 'bt.highlighter': 'Marcador fluorescente',
       'es.0.5': '0,5×', 'es.1': '1× (tamanho da tela)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
       'sr.900': 'Rascunho', 'sr.1800': 'Normal', 'sr.3000': 'Fino', 'sr.4500': 'Máximo'
     },

@@ -85,15 +85,25 @@ Floyd–Steinberg, random noise, and a proper halftone screen with adjustable an
 and dot shape) with a dot size that also scales with the canvas.
 *Clip image to silhouette* keeps the dither off a photo's opaque background.
 
-**Background removal** — one button. It reads the backdrop colour from the four
-corners and lifts it out from the edges inwards, so a colour that also appears
-inside the subject survives. How much slack it allows is taken from how closely
-the four corners agree: a flat backdrop gets a tight threshold, an unevenly lit
-one gets more room. Best on a plain or evenly lit backdrop; there is no manual
-touch-up.
+**Background removal** — one button. It builds a small palette of backdrop
+colours from the whole border ring rather than averaging the four corners, picks
+its threshold from how far those border pixels actually scatter, and grows inward
+from the edges so a colour that also appears inside the subject survives. Where
+the backdrop is graded it follows it locally — each step must be close to the
+pixel it came from, capped so a chain of small steps cannot drift across the
+picture — instead of widening the global threshold, which is what used to let a
+gradient swallow the subject. Edges get partial alpha across a soft band, and
+leftover specks are folded back into the background.
 
-**Drawing** — marker, scribble or highlighter, any colour, on a layer above the
-artwork, in its own tab. Nib width is a percentage of the basis dimension like everything else, and
+Measured against the bundled cut-out composited over four backdrops: flat 99%
+removed / 85% of subject kept, gradient 99% / 99.6%, two-tone 99% / 80%, busy
+texture 58% / 100% — it refuses rather than eating the subject when the backdrop
+is too noisy to key.
+
+**Drawing** — eight brushes (marker, pen, scribble, calligraphy, chalk, spray,
+dashed, highlighter), any colour, on a layer above the artwork, in its own tab.
+Chalk and spray stamp a deterministic grain, calligraphy varies its width with
+the direction of travel, and pen keeps hard mitred joins. Nib width is a percentage of the basis dimension like everything else, and
 strokes are stored in normalised canvas coordinates, so a scribble drawn on the
 1200px preview comes out at the same proportion on an 8000px banner. Ctrl+Z undoes
 the last stroke.
@@ -125,8 +135,9 @@ An upload arrives untouched: the whole picture, at 100%, with no cropping to the
 cut-out and no processing. Background removal, clipping and treatment are things
 you turn on afterwards.
 
-Drag the picture on the artboard to move it, pull a corner handle to scale it, or
-use the wheel to zoom about the pointer. The sliders and the artboard drive the
+Click the picture to pick it up — that shows its frame and four corner handles.
+Drag to move, pull a handle to scale, or use the wheel to zoom about the pointer.
+Click off it, or press Escape, to put it down. The sliders and the artboard drive the
 same numbers, so either works.
 
 Dragging used to cost about a second a frame, because moving the picture moves

@@ -80,7 +80,8 @@
     { k: 'ch', t: 'num', min: 1, step: 1, pair: true },
     { k: 'units', t: 'select', o: [['px', 'units.px'], ['mm', 'units.mm'], ['in', 'units.in']] },
     { k: 'dpi', t: 'num', min: 10, max: 1200, step: 1, show: s => s.units !== 'px' },
-    { k: 'bg', t: 'color' }
+    { k: 'bg', t: 'color' },
+    { k: 'reset', t: 'button', danger: true, act: () => resetAll() }
   ];
 
   /* ---------------- tabs ---------------- */
@@ -188,7 +189,12 @@
         {
           id: 'brush', items: [
             { k: 'drawToggle', t: 'button', act: () => setTool(TOOL === 'paint' ? 'pan' : 'paint') },
-            { k: 'brushType', t: 'select', o: [['marker', 'bt.marker'], ['scribble', 'bt.scribble'], ['highlighter', 'bt.highlighter']] },
+            {
+              k: 'brushType', t: 'select',
+              o: [['marker', 'bt.marker'], ['pen', 'bt.pen'], ['scribble', 'bt.scribble'],
+                  ['calligraphy', 'bt.calligraphy'], ['chalk', 'bt.chalk'], ['spray', 'bt.spray'],
+                  ['dashed', 'bt.dashed'], ['highlighter', 'bt.highlighter']]
+            },
             { k: 'brushColor', t: 'color' },
             { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true },
             { k: 'undoDraw', t: 'button', act: () => { S.paint.pop(); scheduleRender(); save(); } },
@@ -209,6 +215,7 @@
   let TOOL = 'pan';      // pan | paint
   let drawing = null;
   let dragImage = null;   // click-drag on the artboard moves the picture
+  let selected = false;   // the frame and handles only show once you pick the picture up
 
   const $ = sel => document.querySelector(sel);
   const view = $('#view');
@@ -257,7 +264,6 @@
   function applyStaticText() {
     $('#pick').textContent = t('ui.upload');
     $('#dropHint').textContent = t('ui.drop');
-    $('#reset').textContent = t('ui.reset');
     $('#fit').textContent = t('ui.fit');
     $('#exportPng').textContent = t('ui.png');
     $('#exportSvg').textContent = t('ui.svg');
@@ -553,6 +559,7 @@
       im.onload = () => {
         IMG = im;
         resetImageSettings();
+        selected = false;
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
         srcLabel = file.name + ' — ' + im.naturalWidth + '×' + im.naturalHeight;
@@ -645,7 +652,7 @@
     }
     const x = c.getContext('2d');
     x.clearRect(0, 0, c.width, c.height);
-    if (TOOL === 'paint' || dragImage) return;
+    if (TOOL === 'paint' || dragImage || !selected) return;
     const cs = frameCorners();
     if (!cs) return;
     const k = Math.max(1, view.width / 900);
@@ -671,10 +678,11 @@
   function drawCursor(e) {
     const c = $('#cursor');
     if (TOOL !== 'paint') {
-      // over a corner, show that it can be pulled
       if (!dragImage) {
-        const hit = handleAt(pointerPos(e));
-        $('#board').classList.toggle('resizing', hit >= 0);
+        const q = pointerPos(e);
+        const board = $('#board');
+        board.classList.toggle('resizing', handleAt(q) >= 0);
+        board.classList.toggle('over-image', overImage(q));
       }
       return;
     }
@@ -739,6 +747,7 @@
   }
 
   function handleAt(q) {
+    if (!selected) return -1;
     const cs = frameCorners();
     if (!cs) return -1;
     const reach = Math.max(10, view.width * 0.022);
@@ -748,10 +757,29 @@
     return -1;
   }
 
+  function overImage(q) {
+    const cs = frameCorners();
+    if (!cs) return false;
+    const xs = cs.map(c => c.x), ys = cs.map(c => c.y);
+    const pad = Math.max(2, view.width * 0.004);
+    return q.x >= Math.min.apply(null, xs) - pad && q.x <= Math.max.apply(null, xs) + pad &&
+           q.y >= Math.min.apply(null, ys) - pad && q.y <= Math.max.apply(null, ys) + pad;
+  }
+
+  function setSelected(on) {
+    if (selected === on) return;
+    selected = on;
+    $('#board').classList.toggle('picked', on);
+    drawFrame();
+  }
+
   function beginDrag(e) {
     if (!IMG) return;
     const q = pointerPos(e);
     const h = handleAt(q);
+    // clicking off the picture puts it down again
+    if (h < 0 && !overImage(q)) { setSelected(false); return; }
+    setSelected(true);
     dragBase = snapshot();
     const common = {
       id: e.pointerId, x: e.clientX, y: e.clientY,
@@ -873,7 +901,7 @@
       if (drawing || dragImage) return;
       clearCursor();
       drawFrame();
-      $('#board').classList.remove('resizing');
+      $('#board').classList.remove('resizing', 'over-image');
     });
 
     window.addEventListener('keydown', e => {
@@ -884,6 +912,7 @@
         scheduleRender(); save();
         return;
       }
+      if (e.key === 'Escape') { setSelected(false); return; }
       if (e.key === 'b') setTool(TOOL === 'paint' ? 'pan' : 'paint');
     });
   }
@@ -939,6 +968,19 @@
     save();
   }
 
+  function resetAll() {
+    if (!confirm(t('ui.resetConfirm'))) return;
+    const lang = S.lang, tab = S.tab;
+    S = defaults();
+    S.lang = lang; S.tab = tab;
+    TOOL = 'pan';
+    selected = false;
+    Engine.clearCache();
+    buildUI();
+    scheduleRender();
+    save();
+  }
+
   /* ---------------- boot ---------------- */
   function boot() {
     load();
@@ -974,17 +1016,6 @@
     $('#exportPng').onclick = exportPNG;
     $('#exportSvg').onclick = exportSVG;
     $('#fit').onclick = fitView;
-    $('#reset').onclick = () => {
-      if (!confirm(t('ui.resetConfirm'))) return;
-      const lang = S.lang;
-      S = defaults();
-      S.lang = lang;
-      TOOL = 'pan';
-      Engine.clearCache();
-      buildUI();
-      scheduleRender();
-      save();
-    };
     window.addEventListener('resize', fitView);
 
     window.OFFSET = {
