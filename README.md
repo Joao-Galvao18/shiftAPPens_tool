@@ -125,9 +125,22 @@ An upload arrives untouched: the whole picture, at 100%, with no cropping to the
 cut-out and no processing. Background removal, clipping and treatment are things
 you turn on afterwards.
 
-Drag the picture on the artboard to move it and use the wheel to zoom, which
-zooms about the pointer so the bit under the cursor stays put. The sliders and
-the artboard are the same two numbers, so either works.
+Drag the picture on the artboard to move it, pull a corner handle to scale it, or
+use the wheel to zoom about the pointer. The sliders and the artboard drive the
+same numbers, so either works.
+
+Dragging used to cost about a second a frame, because moving the picture moves
+the silhouette and the distance transform had to run again. It doesn't now: the
+strokes and the artwork translate WITH the picture and the background is a flat
+fill, so during a drag the last rendered frame is blitted at an offset, which is
+exact and costs one drawImage. The real render happens once, on release. That
+took a move frame from 914ms to 0.07ms. Corner scaling previews the same way;
+that one is approximate, since stroke weights scale with the preview, and snaps
+true when you let go.
+
+Uploading a picture resets the image settings — background removal, treatment,
+crop, rotation, grain — so whatever you did to the last one doesn't silently land
+on the next. Canvas, strokes and colours are your design, so they stay.
 
 *Align* snaps the subject to any of nine positions. It aligns the subject's own
 bounding box, so strokes may bleed past the edge — lower Scale if you want them

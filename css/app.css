@@ -216,6 +216,7 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 #board.tool #view{cursor:none}
 #board.move #view{cursor:grab}
 #board.grabbing #view{cursor:grabbing}
+#board.resizing #view{cursor:nwse-resize}
 
 #status{
   min-height:24px; padding:5px 12px; font-size:10.5px; color:var(--ink-2);

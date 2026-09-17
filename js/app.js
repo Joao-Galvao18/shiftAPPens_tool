@@ -498,6 +498,7 @@
     vctx.clearRect(0, 0, rw, rh);
     vctx.drawImage(out, 0, 0);
     fitView();
+    drawFrame();
     const mp = c.W * c.H / 1e6;
     $('#dims').textContent = c.W + ' × ' + c.H + ' px';
     $('#scaleinfo').textContent = Math.round(performance.now() - t0) + 'ms';
@@ -530,6 +531,20 @@
   }
 
   /* ---------------- image loading ---------------- */
+  /* A new picture starts clean. Without this, whatever you did to the last image —
+     background removed, thresholded, cropped to its cut-out — silently lands on
+     the next one. Canvas, strokes and colours are your design, so they stay. */
+  function resetImageSettings() {
+    const d = defaults();
+    [
+      'fit', 'fitSubject', 'imgScale', 'imgX', 'imgY', 'rotate', 'flipH', 'flipV',
+      'maskSource', 'maskThreshold', 'maskInvert', 'maskFillHoles', 'maskSmooth', 'maskExpand',
+      'bgMode', 'artMode', 'artOpacity', 'brightness', 'contrast', 'saturation',
+      'artInvert', 'posterize', 'bwThreshold', 'ditherMode', 'ditherStrength',
+      'ditherScale', 'artClip', 'paperTransparent', 'grainAmount'
+    ].forEach(k => { S[k] = d[k]; });
+  }
+
   function loadFile(file) {
     if (!file || !/^image\//.test(file.type)) return;
     const fr = new FileReader();
@@ -537,10 +552,12 @@
       const im = new Image();
       im.onload = () => {
         IMG = im;
+        resetImageSettings();
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
         srcLabel = file.name + ' — ' + im.naturalWidth + '×' + im.naturalHeight;
         $('#srcinfo').textContent = srcLabel;
+        buildUI();
         scheduleRender();
       };
       im.src = fr.result;
@@ -609,7 +626,7 @@
     const board = $('#board');
     board.classList.toggle('tool', name === 'paint');
     board.classList.toggle('move', name !== 'paint');
-    if (name !== 'paint') clearCursor();
+    if (name !== 'paint') { clearCursor(); drawFrame(); }
     status(name === 'paint' ? t('ui.hintPaint') : '');
     applyStaticText();
     refresh();
@@ -620,9 +637,47 @@
     c.getContext('2d').clearRect(0, 0, c.width, c.height);
   }
 
+  /* the picture's frame and its four grab handles */
+  function drawFrame() {
+    const c = $('#cursor');
+    if (c.width !== view.width || c.height !== view.height) {
+      c.width = view.width; c.height = view.height;
+    }
+    const x = c.getContext('2d');
+    x.clearRect(0, 0, c.width, c.height);
+    if (TOOL === 'paint' || dragImage) return;
+    const cs = frameCorners();
+    if (!cs) return;
+    const k = Math.max(1, view.width / 900);
+    x.strokeStyle = 'rgba(28,174,166,.85)';
+    x.lineWidth = k;
+    x.setLineDash([6 * k, 4 * k]);
+    x.beginPath();
+    x.moveTo(cs[0].x, cs[0].y);
+    for (let i = 1; i < 4; i++) x.lineTo(cs[i].x, cs[i].y);
+    x.closePath();
+    x.stroke();
+    x.setLineDash([]);
+    const h = 5 * k;
+    for (const p of cs) {
+      x.fillStyle = '#fff';
+      x.fillRect(p.x - h, p.y - h, h * 2, h * 2);
+      x.strokeStyle = '#1CAEA6';
+      x.lineWidth = 1.5 * k;
+      x.strokeRect(p.x - h, p.y - h, h * 2, h * 2);
+    }
+  }
+
   function drawCursor(e) {
     const c = $('#cursor');
-    if (TOOL !== 'paint') return;
+    if (TOOL !== 'paint') {
+      // over a corner, show that it can be pulled
+      if (!dragImage) {
+        const hit = handleAt(pointerPos(e));
+        $('#board').classList.toggle('resizing', hit >= 0);
+      }
+      return;
+    }
     if (c.width !== view.width || c.height !== view.height) {
       c.width = view.width; c.height = view.height;
     }
@@ -641,18 +696,79 @@
     x.stroke();
   }
 
-  /* Drag the picture around, wheel to zoom. This is the default behaviour of the
-     artboard; the drawing tool takes over only while it is switched on. */
+  /* Drag the picture around, corners to scale, wheel to zoom.
+
+     A move re-renders at about a second a frame, because shifting the picture
+     moves the silhouette and the distance transform has to run again. But the
+     strokes and the artwork all translate WITH the picture, and the background is
+     a flat fill — so during the drag the last rendered frame is simply blitted at
+     an offset, which is exact and costs one drawImage. The real render happens
+     once, on release. Scaling previews the same way; that one is approximate
+     (stroke weights scale with it) and snaps true when you let go. */
+  let dragBase = null;
+
+  function snapshot() {
+    const c = U.createCanvas(view.width, view.height);
+    c.getContext('2d').drawImage(view, 0, 0);
+    return c;
+  }
+
+  function blit(dx, dy, scale, ax, ay) {
+    vctx.setTransform(1, 0, 0, 1, 0, 0);
+    vctx.fillStyle = S.bg;
+    vctx.fillRect(0, 0, view.width, view.height);
+    vctx.save();
+    if (scale !== 1) {
+      vctx.translate(ax, ay);
+      vctx.scale(scale, scale);
+      vctx.translate(-ax, -ay);
+    }
+    vctx.drawImage(dragBase, dx, dy);
+    vctx.restore();
+  }
+
+  /* corners of the picture on the artboard, in canvas pixels */
+  function frameCorners() {
+    if (!IMG) return null;
+    const r = Engine.subjectRect(IMG, S, view.width, view.height, TOKEN);
+    if (!r) return null;
+    return [
+      { x: r.x, y: r.y }, { x: r.x + r.w, y: r.y },
+      { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }
+    ];
+  }
+
+  function handleAt(q) {
+    const cs = frameCorners();
+    if (!cs) return -1;
+    const reach = Math.max(10, view.width * 0.022);
+    for (let i = 0; i < 4; i++) {
+      if (Math.hypot(q.x - cs[i].x, q.y - cs[i].y) <= reach) return i;
+    }
+    return -1;
+  }
+
   function beginDrag(e) {
     if (!IMG) return;
-    dragImage = {
-      id: e.pointerId,
-      x: e.clientX, y: e.clientY,
-      imgX: S.imgX, imgY: S.imgY,
-      scale: viewScale()
+    const q = pointerPos(e);
+    const h = handleAt(q);
+    dragBase = snapshot();
+    const common = {
+      id: e.pointerId, x: e.clientX, y: e.clientY,
+      imgX: S.imgX, imgY: S.imgY, scale: S.imgScale, css: viewScale()
     };
+    if (h >= 0) {
+      const cs = frameCorners();
+      const anchor = cs[(h + 2) % 4];          // the corner you are pulling against
+      const src = Engine.canvasToSource(IMG, S, view.width, view.height, anchor.x, anchor.y);
+      const d0 = Math.hypot(q.x - anchor.x, q.y - anchor.y);
+      dragImage = Object.assign({ mode: 'scale', anchor: anchor, src: src, d0: Math.max(1, d0) }, common);
+    } else {
+      dragImage = Object.assign({ mode: 'move' }, common);
+    }
     view.setPointerCapture(e.pointerId);
     $('#board').classList.add('grabbing');
+    clearCursor();
   }
 
   /* canvas pixels per CSS pixel, so a drag tracks the pointer exactly */
@@ -663,22 +779,38 @@
 
   function moveDrag(e) {
     if (!dragImage) return;
-    const c = Engine.canvasPx(S);
-    const unit = Engine.computeUnit(S.basis, c.W, c.H);
-    const k = c.W / view.width;       // preview pixels -> canvas pixels
-    const dx = (e.clientX - dragImage.x) * dragImage.scale * k;
-    const dy = (e.clientY - dragImage.y) * dragImage.scale * k;
-    S.imgX = U.clamp(dragImage.imgX + dx / unit * 100, -150, 150);
-    S.imgY = U.clamp(dragImage.imgY + dy / unit * 100, -150, 150);
-    scheduleRender();
+    const unit = Engine.computeUnit(S.basis, view.width, view.height);
+
+    if (dragImage.mode === 'move') {
+      const dx = (e.clientX - dragImage.x) * dragImage.css;
+      const dy = (e.clientY - dragImage.y) * dragImage.css;
+      S.imgX = U.clamp(dragImage.imgX + dx / unit * 100, -150, 150);
+      S.imgY = U.clamp(dragImage.imgY + dy / unit * 100, -150, 150);
+      blit(dx, dy, 1, 0, 0);
+      return;
+    }
+
+    const q = pointerPos(e);
+    const a = dragImage.anchor;
+    const f = Math.hypot(q.x - a.x, q.y - a.y) / dragImage.d0;
+    const next = U.clamp(dragImage.scale * f, 5, 300);
+    S.imgScale = next;
+    // hold the opposite corner still
+    S.imgX = dragImage.imgX; S.imgY = dragImage.imgY;
+    const now = Engine.sourceToCanvas(IMG, S, view.width, view.height, dragImage.src.x, dragImage.src.y);
+    S.imgX = U.clamp(dragImage.imgX + (a.x - now.x) / unit * 100, -150, 150);
+    S.imgY = U.clamp(dragImage.imgY + (a.y - now.y) / unit * 100, -150, 150);
+    blit(0, 0, next / dragImage.scale, a.x, a.y);
   }
 
   function endDrag(e) {
     if (!dragImage) return;
     dragImage = null;
+    dragBase = null;
     try { view.releasePointerCapture(e.pointerId); } catch (err) { /* gone */ }
     $('#board').classList.remove('grabbing');
     refresh(); save();
+    scheduleRender();
   }
 
   /* zoom about the pointer: the bit of picture under the cursor stays put */
@@ -737,7 +869,12 @@
     view.addEventListener('pointerup', endStroke);
     view.addEventListener('pointercancel', endStroke);
     view.addEventListener('wheel', wheelZoom, { passive: false });
-    view.addEventListener('pointerleave', () => { if (!drawing) clearCursor(); });
+    view.addEventListener('pointerleave', () => {
+      if (drawing || dragImage) return;
+      clearCursor();
+      drawFrame();
+      $('#board').classList.remove('resizing');
+    });
 
     window.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
