@@ -70,34 +70,75 @@
     return box;
   }
 
-  function placeImage(img, W, H, S, unit) {
-    const c = U.createCanvas(W, H);
-    const x = c.getContext('2d');
-    if (!img) return c;
-    x.imageSmoothingEnabled = true;
-    x.imageSmoothingQuality = 'high';
+  /* The source after background removal. Cached separately, because it is the
+     expensive step and a colour tweak must never re-run it. */
+  let srcCache = { key: null };
 
-    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-    if (!iw || !ih) return c;
+  function preparedSource(img, S, token) {
+    if (!img) return null;
+    const brush = (S.bgBrush || []).length ? (S.bgBrush.length + ':' + (S.bgRev || 0)) : '0';
+    const key = [token, S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather, brush].join('|');
+    if (srcCache.key === key) return srcCache.val;
+    const val = (S.bgMode === 'off' && !(S.bgBrush || []).length) ? img : BG.apply(img, S);
+    srcCache = { key: key, val: val };
+    return val;
+  }
 
-    // the region Fit and Scale are measured against
+  /* source-image coords -> canvas coords. Built as a matrix so it can be
+     inverted: the eyedropper and the background brush need to go the other way. */
+  function placementMatrix(src, W, H, S, unit) {
+    const iw = src.naturalWidth || src.width, ih = src.naturalHeight || src.height;
     let fx = 0, fy = 0, fw = iw, fh = ih;
     if (S.fitSubject) {
-      const b = subjectBox(img);
+      const b = subjectBox(src);
       if (b) { fx = b.x; fy = b.y; fw = b.w; fh = b.h; }
     }
-
     const base = S.fit === 'cover' ? Math.max(W / fw, H / fh) : Math.min(W / fw, H / fh);
     const s = base * (S.imgScale / 100);
-    const cx = fx + fw / 2, cy = fy + fh / 2;
+    const m = new DOMMatrix();
+    m.translateSelf(W / 2 + S.imgX / 100 * unit, H / 2 + S.imgY / 100 * unit);
+    if (S.rotate) m.rotateSelf(S.rotate);
+    m.scaleSelf(s * (S.flipH ? -1 : 1), s * (S.flipV ? -1 : 1));
+    m.translateSelf(-(fx + fw / 2), -(fy + fh / 2));
+    return m;
+  }
 
-    x.save();
-    x.translate(W / 2 + S.imgX / 100 * unit, H / 2 + S.imgY / 100 * unit);
-    if (S.rotate) x.rotate(S.rotate * Math.PI / 180);
-    x.scale(s * (S.flipH ? -1 : 1), s * (S.flipV ? -1 : 1));
-    x.drawImage(img, -cx, -cy, iw, ih);
-    x.restore();
+  function placeImage(src, W, H, S, unit) {
+    const c = U.createCanvas(W, H);
+    const x = c.getContext('2d');
+    if (!src) return c;
+    const iw = src.naturalWidth || src.width, ih = src.naturalHeight || src.height;
+    if (!iw || !ih) return c;
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = 'high';
+    const m = placementMatrix(src, W, H, S, unit);
+    x.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    x.drawImage(src, 0, 0, iw, ih);
+    x.setTransform(1, 0, 0, 1, 0, 0);
     return c;
+  }
+
+  /* canvas point -> point in the source image, normalised to [0..1] */
+  function canvasToSource(img, S, W, H, px, py) {
+    if (!img) return null;
+    const unit = computeUnit(S.basis, W, H);
+    const m = placementMatrix(img, W, H, S, unit).inverse();
+    const p = m.transformPoint(new DOMPoint(px, py));
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    return { x: p.x / iw, y: p.y / ih, inside: p.x >= 0 && p.y >= 0 && p.x < iw && p.y < ih };
+  }
+
+  /* colour under a canvas point, read from the ORIGINAL image so the eyedropper
+     keeps working after the background has been knocked out */
+  function pickColor(img, S, W, H, px, py) {
+    const q = canvasToSource(img, S, W, H, px, py);
+    if (!q || !q.inside) return null;
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const c = U.createCanvas(1, 1);
+    const x = c.getContext('2d');
+    x.drawImage(img, Math.floor(q.x * iw), Math.floor(q.y * ih), 1, 1, 0, 0, 1, 1);
+    const d = x.getImageData(0, 0, 1, 1).data;
+    return U.rgb2hex([d[0], d[1], d[2]]);
   }
 
   /* ---------- 2. silhouette mask + signed distance field ---------- */
@@ -264,7 +305,9 @@
       return c;
     }
 
-    const block = Math.max(1, Math.round(S.ditherScale / 100 * unit));
+    const halftone = S.artMode === 'bitmap' && S.ditherMode === 'halftone';
+    // a halftone screen needs full resolution; its cell size carries the scaling
+    const block = halftone ? 1 : Math.max(1, Math.round(S.ditherScale / 100 * unit));
     const w2 = Math.max(1, Math.round(W / block));
     const h2 = Math.max(1, Math.round(H / block));
 
@@ -311,7 +354,36 @@
       const bits = new Uint8Array(n);
       const mode = S.ditherMode;
 
-      if (mode === 'floyd') {
+      if (mode === 'halftone') {
+        /* Classic rotated dot screen: inside each cell the ink dot grows as the
+           tone darkens, its AREA proportional to coverage (hence the sqrt).
+           The cell is a percentage of the basis, so the screen ruling scales with
+           the canvas instead of dissolving into noise on a large export. */
+        const cell = Math.max(2, S.ditherScale / 100 * unit);
+        const a = S.halftoneAngle * Math.PI / 180;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const shape = S.halftoneShape;
+        const gain = Math.max(0.01, S.ditherStrength / 100);
+        for (let y = 0; y < h2; y++) {
+          for (let x = 0; x < w2; x++) {
+            const i = y * w2 + x;
+            const u = (x * ca - y * sa) / cell;
+            const v = (x * sa + y * ca) / cell;
+            const cov = U.clamp((thr - lum[i]) * gain + 0.5, 0, 1);  // 1 = solid ink
+            let d;
+            if (shape === 'line') {
+              d = Math.abs(v - Math.floor(v) - 0.5) * 2;
+            } else {
+              const fu = u - Math.floor(u) - 0.5;
+              const fv = v - Math.floor(v) - 0.5;
+              d = shape === 'square'
+                ? Math.max(Math.abs(fu), Math.abs(fv)) * 2
+                : Math.hypot(fu, fv) * 2;
+            }
+            bits[i] = d < Math.sqrt(cov) * 1.128 ? 0 : 1;   // 0 = ink
+          }
+        }
+      } else if (mode === 'floyd') {
         for (let y = 0; y < h2; y++) {
           const rev = y % 2 === 1;
           for (let k = 0; k < w2; k++) {
@@ -417,6 +489,7 @@
 
   function fieldKey(S, W, H, token) {
     return [W, H, S.basis, S.fit, S.fitSubject, S.imgScale, S.imgX, S.imgY, S.rotate, S.flipH, S.flipV,
+      S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather, (S.bgBrush || []).length, S.bgRev,
       S.maskSource, S.maskThreshold, S.maskInvert, S.maskFillHoles, S.maskSmooth, token].join('|');
   }
 
@@ -424,9 +497,10 @@
     const key = fieldKey(S, W, H, token);
     if (cache.key === key) return cache.val;
     const unit = computeUnit(S.basis, W, H);
-    const placed = placeImage(img, W, H, S, unit);
+    const src = preparedSource(img, S, token);
+    const placed = placeImage(src, W, H, S, unit);
     const data = placed.getContext('2d').getImageData(0, 0, W, H).data;
-    const r = buildSDF(data, W, H, S, unit, img);
+    const r = buildSDF(data, W, H, S, unit, src);
     cache = { key: key, val: { placed: placed, sdf: r.sdf, mask: r.mask } };
     return cache.val;
   }
@@ -443,6 +517,7 @@
       ctx.drawImage(art, 0, 0);
       ctx.globalAlpha = 1;
     }
+    Paint.render(ctx, S.paint, W, H, unit);
     grain(ctx, W, H, S, unit);
     return out;
   }
@@ -495,6 +570,13 @@
         (S.artOpacity / 100) + '" xlink:href="' + art.toDataURL('image/png') + '"/>');
     }
 
+    if (S.paint && S.paint.length) {
+      const pc = U.createCanvas(W, H);
+      Paint.render(pc.getContext('2d'), S.paint, W, H, computeUnit(S.basis, W, H));
+      parts.push('<image x="0" y="0" width="' + W + '" height="' + H +
+        '" xlink:href="' + pc.toDataURL('image/png') + '"/>');
+    }
+
     return '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' +
       'width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">\n' +
@@ -508,6 +590,9 @@
     canvasPx: canvasPx,
     computeUnit: computeUnit,
     ringBands: ringBands,
-    clearCache: function () { cache = { key: null }; }
+    canvasToSource: canvasToSource,
+    pickColor: pickColor,
+    preparedSource: preparedSource,
+    clearCache: function () { cache = { key: null }; srcCache = { key: null }; }
   };
 })(window);

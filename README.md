@@ -81,8 +81,23 @@ gaps between strokes / the area behind the image, and inward strokes.
 **Image treatment** — photo / 1-bit threshold / flat silhouette / hidden.
 Brightness, contrast, saturation, posterize, invert. For 1-bit: threshold, ink and
 paper colours, which tone the ink covers, and dithering (ordered 4×4, ordered 8×8,
-Floyd–Steinberg, random noise) with a dot size that also scales with the canvas.
+Floyd–Steinberg, random noise, and a proper halftone screen with adjustable angle
+and dot shape) with a dot size that also scales with the canvas.
 *Clip image to silhouette* keeps the dither off a photo's opaque background.
+
+**Background removal** — Auto reads the key colour from the four corners; or pick
+one with the eyedropper. Tolerance, edge softening, and a contiguous toggle: on, it
+only eats background connected to the border, so a colour that also appears inside
+the subject survives; off, it removes that colour everywhere. The Erase and Restore
+brushes fix whatever the automatic pass got wrong — brush marks are stored in
+source-image coordinates, so they hold when you change canvas, scale or format,
+and the most recently drawn stroke over a pixel wins.
+
+**Drawing** — marker, scribble or highlighter, any colour, on a layer above the
+artwork. Nib width is a percentage of the basis dimension like everything else, and
+strokes are stored in normalised canvas coordinates, so a scribble drawn on the
+1200px preview comes out at the same proportion on an 8000px banner. Ctrl+Z undoes
+the last stroke.
 
 **Grain** — amount, size, mono/colour, and the noise seed.
 
@@ -94,6 +109,16 @@ set to anything but Random noise, the seed does nothing.
 
 **Export** — PNG at 0.5×–4× the canvas size, or SVG with the strokes as vector
 paths (the image itself stays raster inside the SVG, at full export resolution).
+
+## Tools on the artboard
+
+The strip above the canvas switches what a drag does. Keyboard: `V` move, `B` draw,
+`E` erase, `R` restore, `I` pick colour.
+
+The halftone screen is evaluated at full render resolution rather than by
+downsampling, with the cell size taken as a percentage of the basis — so the screen
+ruling scales with the canvas instead of dissolving into noise on a large export.
+Traditional screens sit at 45°, where the dot pattern is least visible.
 
 ## Language
 
@@ -120,6 +145,8 @@ index.html       markup shell
 css/app.css      light UI
 js/util.js       helpers
 js/i18n.js       English / Portuguese strings
+js/bg.js         background removal
+js/paint.js      the drawing layer
 js/edt.js        distance transform, blur, hole fill
 js/contour.js    marching squares, simplification, SVG paths
 js/engine.js     placement, mask, rings, image FX, export

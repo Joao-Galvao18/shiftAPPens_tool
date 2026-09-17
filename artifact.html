@@ -1,12 +1,14 @@
 <title>Offset Stroke Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/app.css">
 
 <div id="app">
 
   <aside id="side">
+    <div class="masthead" aria-hidden="true"></div>
+
     <div class="drop">
       <input type="file" id="file" accept="image/*" hidden>
       <button id="pick" class="btn primary">Upload image</button>
@@ -17,15 +19,27 @@
     <div id="panels"></div>
 
     <footer class="sidefoot">
-      <button id="reset" class="btn ghost small">Reset all</button>
+      <button id="reset" class="btn ghost small danger">Reset all</button>
     </footer>
   </aside>
 
   <main id="stage" data-drop="Drop image">
     <div id="toolbar">
+      <div id="tools" role="group" aria-label="Tools">
+        <button type="button" data-tool="pan" class="on" aria-pressed="true">Move</button>
+        <button type="button" data-tool="paint" aria-pressed="false">Draw</button>
+        <button type="button" data-tool="erase" aria-pressed="false">Erase</button>
+        <button type="button" data-tool="restore" aria-pressed="false">Restore</button>
+        <button type="button" data-tool="pick" aria-pressed="false">Pick colour</button>
+      </div>
+      <button id="undoDraw" class="btn ghost small">Undo stroke</button>
+      <button id="clearDraw" class="btn ghost small">Clear drawing</button>
+      <button id="clearBg" class="btn ghost small">Clear brush marks</button>
+
+      <span class="spacer"></span>
+
       <span id="dims" class="pill"></span>
       <span id="scaleinfo" class="pill dim"></span>
-      <span class="spacer"></span>
       <div id="lang" class="seg" role="group" aria-label="Language">
         <button type="button" data-lang="en" class="on" aria-pressed="true">EN</button>
         <button type="button" data-lang="pt" aria-pressed="false">PT</button>
@@ -44,5 +58,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/edt.js"></script>
 <script src="js/contour.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/paint.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/app.js"></script>

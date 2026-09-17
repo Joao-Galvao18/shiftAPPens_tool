@@ -59,6 +59,13 @@
       bwThreshold: 150, ditherMode: 'none', ditherStrength: 100, ditherScale: 0.08,
       crispPixels: true, artClip: false, inkOn: 'dark', inkColor: '#FFFFFF',
       paperColor: '#000000', paperTransparent: true,
+      // background removal
+      bgMode: 'off', bgKeyColor: '#ffffff', bgTolerance: 12, bgContiguous: true,
+      bgFeather: 0.15, bgBrushSize: 3, bgBrush: [], bgRev: 0,
+      // drawing
+      paint: [], brushColor: '#0B63B0', brushWidth: 1.6, brushType: 'scribble',
+      // halftone
+      halftoneAngle: 45, halftoneShape: 'dot',
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // misc
@@ -97,6 +104,16 @@
         { k: 'rotate', t: 'range', min: -180, max: 180, step: 0.5, u: '°' },
         { k: 'flipH', t: 'check' },
         { k: 'flipV', t: 'check' }
+      ]
+    },
+    {
+      id: 'bg', items: [
+        { k: 'bgMode', t: 'select', hint: true, o: [['off', 'bg.off'], ['auto', 'bg.auto'], ['color', 'bg.color']] },
+        { k: 'bgKeyColor', t: 'color', show: s => s.bgMode === 'color' },
+        { k: 'bgTolerance', t: 'range', min: 0, max: 100, step: 0.5, u: '%', show: s => s.bgMode !== 'off' },
+        { k: 'bgContiguous', t: 'check', hint: true, show: s => s.bgMode !== 'off' },
+        { k: 'bgFeather', t: 'range', min: 0, max: 3, step: 0.01, u: '%', show: s => s.bgMode !== 'off' },
+        { k: 'bgBrushSize', t: 'range', min: 0.2, max: 25, step: 0.1, u: '%', hint: true }
       ]
     },
     {
@@ -139,8 +156,10 @@
         { k: 'bwThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.artMode === 'bitmap' },
         {
           k: 'ditherMode', t: 'select', show: s => s.artMode === 'bitmap',
-          o: [['none', 'dm.none'], ['bayer4', 'dm.bayer4'], ['bayer8', 'dm.bayer8'], ['floyd', 'dm.floyd'], ['noise', 'dm.noise']]
+          o: [['none', 'dm.none'], ['halftone', 'dm.halftone'], ['bayer4', 'dm.bayer4'], ['bayer8', 'dm.bayer8'], ['floyd', 'dm.floyd'], ['noise', 'dm.noise']]
         },
+        { k: 'halftoneAngle', t: 'range', min: 0, max: 90, step: 1, u: '°', hint: true, show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
+        { k: 'halftoneShape', t: 'select', o: [['dot', 'hs.dot'], ['square', 'hs.square'], ['line', 'hs.line']], show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
         { k: 'ditherStrength', t: 'range', min: 0, max: 200, step: 1, u: '%', show: s => s.artMode === 'bitmap' && s.ditherMode !== 'none' && s.ditherMode !== 'floyd' },
         { k: 'ditherScale', t: 'range', min: 0.02, max: 4, step: 0.01, u: '%', px: true, hint: true, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
         { k: 'crispPixels', t: 'check', show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
@@ -150,6 +169,13 @@
         { k: 'saturation', t: 'range', min: 0, max: 300, step: 1, u: '%', show: s => s.artMode === 'photo' },
         { k: 'posterize', t: 'range', min: 0, max: 12, step: 1, hint: true, show: s => s.artMode === 'photo' },
         { k: 'artInvert', t: 'check', show: s => s.artMode !== 'silhouette' && s.artMode !== 'none' }
+      ]
+    },
+    {
+      id: 'draw', items: [
+        { k: 'brushType', t: 'select', o: [['marker', 'bt.marker'], ['scribble', 'bt.scribble'], ['highlighter', 'bt.highlighter']] },
+        { k: 'brushColor', t: 'color' },
+        { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true }
       ]
     },
     {
@@ -176,6 +202,8 @@
   let rafId = 0;
   let controls = [];
   let srcLabel = null;   // null = the bundled example, else the uploaded file's name
+  let TOOL = 'pan';      // pan | paint | erase | restore | pick
+  let drawing = null;    // the stroke currently under the pointer
 
   const $ = sel => document.querySelector(sel);
   const view = $('#view');
@@ -211,6 +239,15 @@
     $('#exportPng').textContent = t('ui.png');
     $('#exportSvg').textContent = t('ui.svg');
     $('#stage').dataset.drop = t('ui.dropOver');
+    const toolNames = { pan: 'tPan', paint: 'tPaint', erase: 'tErase', restore: 'tRestore', pick: 'tPick' };
+    [...document.querySelectorAll('#tools button')].forEach(b => {
+      b.textContent = t('ui.' + toolNames[b.dataset.tool]);
+      b.classList.toggle('on', b.dataset.tool === TOOL);
+      b.setAttribute('aria-pressed', b.dataset.tool === TOOL);
+    });
+    $('#clearDraw').textContent = t('ui.clearDraw');
+    $('#undoDraw').textContent = t('ui.undoDraw');
+    $('#clearBg').textContent = t('ui.clearBg');
     $('#srcinfo').textContent = srcLabel === null ? t('ui.exampleLoaded') : srcLabel;
     document.documentElement.lang = I18N.getLang();
     [...document.querySelectorAll('#lang button')].forEach(b => {
@@ -455,6 +492,8 @@
         IMG = im;
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
+        S.bgBrush = [];
+        S.bgRev++;
         srcLabel = file.name + ' — ' + im.naturalWidth + '×' + im.naturalHeight;
         $('#srcinfo').textContent = srcLabel;
         scheduleRender();
@@ -504,6 +543,135 @@
       scheduleRender();
     };
     im.src = c.toDataURL();
+  }
+
+
+  /* ---------------- artboard tools ---------------- */
+
+  /* pointer -> canvas coords, in the render's own pixel space */
+  function pointerPos(e) {
+    const r = view.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) / r.width * view.width,
+      y: (e.clientY - r.top) / r.height * view.height
+    };
+  }
+
+  function setTool(name) {
+    TOOL = name;
+    view.classList.toggle('drawing', name === 'paint' || name === 'erase' || name === 'restore');
+    view.classList.toggle('picking', name === 'pick');
+    const hints = { paint: 'hintPaint', erase: 'hintErase', restore: 'hintRestore', pick: 'hintPick' };
+    status(hints[name] ? t('ui.' + hints[name]) : '');
+    applyStaticText();
+  }
+
+  function beginStroke(e) {
+    if (TOOL === 'pan') return;
+    const q = pointerPos(e);
+
+    if (TOOL === 'pick') {
+      const hex = Engine.pickColor(IMG, S, view.width, view.height, q.x, q.y);
+      if (!hex) { status(t('ui.pickFail'), true); return; }
+      S.bgKeyColor = hex;
+      if (S.bgMode !== 'color') S.bgMode = 'color';
+      Engine.clearCache();
+      refresh(); scheduleRender(); save();
+      status(t('ui.picked', hex));
+      return;
+    }
+
+    view.setPointerCapture(e.pointerId);
+
+    if (TOOL === 'paint') {
+      drawing = {
+        kind: 'paint',
+        stroke: {
+          color: S.brushColor, width: S.brushWidth, type: S.brushType,
+          points: [[q.x / view.width, q.y / view.height]]
+        }
+      };
+      S.paint.push(drawing.stroke);
+    } else {
+      // erase / restore act on the photo, so points live in source-image space
+      const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
+      if (!sp) return;
+      drawing = {
+        kind: 'bg',
+        stroke: { kind: TOOL, size: S.bgBrushSize, points: [[sp.x, sp.y]] }
+      };
+      S.bgBrush.push(drawing.stroke);
+      S.bgRev++;
+    }
+    scheduleRender();
+  }
+
+  function extendStroke(e) {
+    if (!drawing) return;
+    const q = pointerPos(e);
+    const pts = drawing.stroke.points;
+    if (drawing.kind === 'paint') {
+      const nx = q.x / view.width, ny = q.y / view.height;
+      const last = pts[pts.length - 1];
+      if (Math.hypot(nx - last[0], ny - last[1]) < 0.002) return;
+      pts.push([nx, ny]);
+    } else {
+      const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
+      if (!sp) return;
+      const last = pts[pts.length - 1];
+      if (Math.hypot(sp.x - last[0], sp.y - last[1]) < 0.002) return;
+      pts.push([sp.x, sp.y]);
+      S.bgRev++;
+      Engine.clearCache();
+    }
+    scheduleRender();
+  }
+
+  function endStroke(e) {
+    if (!drawing) return;
+    if (drawing.kind === 'bg') { S.bgRev++; Engine.clearCache(); }
+    drawing = null;
+    try { view.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+    scheduleRender();
+    save();
+  }
+
+  function bindTools() {
+    [...document.querySelectorAll('#tools button')].forEach(b => {
+      b.onclick = () => setTool(b.dataset.tool);
+    });
+    view.addEventListener('pointerdown', beginStroke);
+    view.addEventListener('pointermove', extendStroke);
+    view.addEventListener('pointerup', endStroke);
+    view.addEventListener('pointercancel', endStroke);
+
+    $('#undoDraw').onclick = () => {
+      S.paint.pop();
+      scheduleRender(); save();
+    };
+    $('#clearDraw').onclick = () => {
+      S.paint = [];
+      scheduleRender(); save();
+      status(t('ui.cleared'));
+    };
+    $('#clearBg').onclick = () => {
+      S.bgBrush = [];
+      S.bgRev++;
+      Engine.clearCache();
+      scheduleRender(); save();
+      status(t('ui.cleared'));
+    };
+
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && S.paint.length) {
+        e.preventDefault();
+        S.paint.pop();
+        scheduleRender(); save();
+      }
+      const keys = { v: 'pan', b: 'paint', e: 'erase', r: 'restore', i: 'pick' };
+      if (keys[e.key]) setTool(keys[e.key]);
+    });
   }
 
   /* ---------------- export ---------------- */
@@ -587,6 +755,8 @@
       for (const it of items) if (it.type.indexOf('image') === 0) loadFile(it.getAsFile());
     });
 
+    bindTools();
+
     $('#exportPng').onclick = exportPNG;
     $('#exportSvg').onclick = exportSVG;
     $('#fit').onclick = fitView;
@@ -595,6 +765,7 @@
       const lang = S.lang;
       S = defaults();
       S.lang = lang;
+      TOOL = 'pan';
       Engine.clearCache();
       buildUI();
       scheduleRender();
