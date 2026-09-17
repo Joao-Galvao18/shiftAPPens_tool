@@ -76,10 +76,9 @@
 
   function preparedSource(img, S, token) {
     if (!img) return null;
-    const brush = (S.bgBrush || []).length ? (S.bgBrush.length + ':' + (S.bgRev || 0)) : '0';
-    const key = [token, S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather, brush].join('|');
+    const key = [token, S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather].join('|');
     if (srcCache.key === key) return srcCache.val;
-    const val = (S.bgMode === 'off' && !(S.bgBrush || []).length) ? img : BG.apply(img, S);
+    const val = S.bgMode === 'off' ? img : BG.apply(img, S);
     srcCache = { key: key, val: val };
     return val;
   }
@@ -126,6 +125,32 @@
     const p = m.transformPoint(new DOMPoint(px, py));
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     return { x: p.x / iw, y: p.y / ih, inside: p.x >= 0 && p.y >= 0 && p.x < iw && p.y < ih };
+  }
+
+  /* How far the strokes reach beyond the silhouette, in canvas pixels. Alignment
+     uses it so "align left" puts the outermost stroke against the edge rather
+     than pushing it off the canvas. */
+  function strokeExtent(S, unit) {
+    const bands = ringBands(S, unit, Math.min(S.ringCount, MAXCODE));
+    return bands.max + Math.max(0, S.maskExpand / 100 * unit);
+  }
+
+  /* Axis-aligned bounding box of the placed subject, in canvas pixels. The four
+     corners go through the same matrix the render uses, so rotation is handled. */
+  function subjectRect(img, S, W, H, token) {
+    const src = preparedSource(img, S, token);
+    if (!src) return null;
+    const iw = src.naturalWidth || src.width, ih = src.naturalHeight || src.height;
+    let fx = 0, fy = 0, fw = iw, fh = ih;
+    const b = S.fitSubject ? subjectBox(src) : null;
+    if (b) { fx = b.x; fy = b.y; fw = b.w; fh = b.h; }
+    const m = placementMatrix(src, W, H, S, computeUnit(S.basis, W, H));
+    const pts = [[fx, fy], [fx + fw, fy], [fx + fw, fy + fh], [fx, fy + fh]]
+      .map(c => m.transformPoint(new DOMPoint(c[0], c[1])));
+    const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
+    const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
 
   /* how many canvas pixels one source pixel covers, so the UI can show the
@@ -497,7 +522,7 @@
 
   function fieldKey(S, W, H, token) {
     return [W, H, S.basis, S.fit, S.fitSubject, S.imgScale, S.imgX, S.imgY, S.rotate, S.flipH, S.flipV,
-      S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather, (S.bgBrush || []).length, S.bgRev,
+      S.bgMode, S.bgKeyColor, S.bgTolerance, S.bgContiguous, S.bgFeather,
       S.maskSource, S.maskThreshold, S.maskInvert, S.maskFillHoles, S.maskSmooth, token].join('|');
   }
 
@@ -523,9 +548,8 @@
     const skip = {
       paint: 1, lang: 1, sizePreset: 1, previewQuality: 1,
       grainAmount: 1, grainScale: 1, grainMono: 1,
-      brushColor: 1, brushWidth: 1, brushType: 1, bgBrushSize: 1,
+      brushColor: 1, brushWidth: 1, brushType: 1,
       exportScale: 1, svgRes: 1, svgSimplify: 1,
-      bgBrush: 1   // represented by bgRev, so a long drag stays cheap to key
     };
     for (const k in S) if (!skip[k]) o[k] = S[k];
     return W + 'x' + H + '|' + token + '|' + JSON.stringify(o);
@@ -629,6 +653,8 @@
     ringBands: ringBands,
     canvasToSource: canvasToSource,
     sourceScale: sourceScale,
+    subjectRect: subjectRect,
+    strokeExtent: strokeExtent,
     pickColor: pickColor,
     preparedSource: preparedSource,
     clearCache: function () { cache = { key: null }; srcCache = { key: null }; baseCache = { key: null }; }

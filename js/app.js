@@ -27,8 +27,6 @@
     'sunset': { bg: '#2B1055', rings: ['#FF6B6B', '#FFD93D', '#6BCB77'], ink: '#FFFFFF' }
   };
 
-  /* Tried in order; the first that loads wins. A browser can't list a directory,
-     so the example has to be one of these known names. */
   const EXAMPLE_SRC = [
     'assets/example.png', 'assets/example.jpg', 'assets/example.jpeg',
     'assets/example.webp', 'assets/example.avif'
@@ -37,12 +35,13 @@
   /* ---------------- defaults ---------------- */
   function defaults() {
     return {
-      lang: 'en',
+      lang: 'en', tab: 'strokes',
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
       basis: 'short', previewQuality: 1200, bg: '#FFD400',
       // placement
-      fit: 'contain', fitSubject: true, imgScale: 78, imgX: 0, imgY: 0, rotate: 0, flipH: false, flipV: false,
+      fit: 'contain', fitSubject: true, imgScale: 78, imgX: 0, imgY: 0,
+      rotate: 0, flipH: false, flipV: false,
       // silhouette
       maskSource: 'auto', maskThreshold: 160, maskInvert: false, maskFillHoles: true,
       maskSmooth: 0.8, maskExpand: 0,
@@ -53,19 +52,18 @@
       haloUseBg: true, haloColor: '#ffffff',
       fillUseBg: true, fillColor: '#ffffff',
       innerRings: 0, aa: true,
+      // background removal
+      bgMode: 'off', bgKeyColor: '#ffffff', bgTolerance: 12,
+      bgContiguous: true, bgFeather: 0.15,
       // artwork
       artMode: 'photo', artOpacity: 100, brightness: 0, contrast: 10, saturation: 100,
       artInvert: false, posterize: 0,
       bwThreshold: 150, ditherMode: 'none', ditherStrength: 100, ditherScale: 0.08,
+      halftoneAngle: 45, halftoneShape: 'dot',
       crispPixels: true, artClip: false, inkOn: 'dark', inkColor: '#FFFFFF',
       paperColor: '#000000', paperTransparent: true,
-      // background removal
-      bgMode: 'off', bgKeyColor: '#ffffff', bgTolerance: 12, bgContiguous: true,
-      bgFeather: 0.15, bgBrushSize: 3, bgBrush: [], bgRev: 0,
       // drawing
-      paint: [], brushColor: '#0B63B0', brushWidth: 1.6, brushType: 'scribble',
-      // halftone
-      halftoneAngle: 45, halftoneShape: 'dot',
+      paint: [], brushColor: '#DB6AC3', brushWidth: 1.6, brushType: 'scribble',
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // misc
@@ -73,124 +71,129 @@
     };
   }
 
-  /* ---------------- control schema ----------------
-     Labels, hints and option names are i18n keys, resolved at build time. */
+  /* ---------------- the canvas block, always visible above the tabs ---------------- */
   const sizeOpts = [['custom', 'size.custom']].concat(
     Object.keys(SIZE_PRESETS).map(k => [k, 'size.' + k]));
 
-  const SCHEMA = [
+  const CANVAS_ITEMS = [
+    { k: 'sizePreset', t: 'select', o: sizeOpts },
+    { k: 'cw', t: 'num', min: 1, step: 1, pair: true },
+    { k: 'ch', t: 'num', min: 1, step: 1, pair: true },
+    { k: 'units', t: 'select', o: [['px', 'units.px'], ['mm', 'units.mm'], ['in', 'units.in']] },
+    { k: 'dpi', t: 'num', min: 10, max: 1200, step: 1, show: s => s.units !== 'px' },
+    { k: 'bg', t: 'color' }
+  ];
+
+  /* ---------------- tabs ---------------- */
+  const TABS = [
     {
-      id: 'canvas', open: true, items: [
-        { k: 'sizePreset', t: 'select', o: sizeOpts },
-        { k: 'units', t: 'select', o: [['px', 'units.px'], ['mm', 'units.mm'], ['in', 'units.in']] },
-        { k: 'cw', t: 'num', min: 1, step: 1 },
-        { k: 'ch', t: 'num', min: 1, step: 1 },
-        { k: 'dpi', t: 'num', min: 10, max: 1200, step: 1, show: s => s.units !== 'px' },
+      id: 'strokes', groups: [
         {
-          k: 'basis', t: 'select', hint: true,
-          o: [['short', 'basis.short'], ['long', 'basis.long'], ['width', 'basis.width'], ['height', 'basis.height'], ['diag', 'basis.diag']]
+          id: 'shape', items: [
+            { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
+            { k: 'strokeW', t: 'range', min: 0.05, max: 15, step: 0.01, u: '%', px: true, hint: true },
+            { k: 'ringGap', t: 'range', min: 0, max: 15, step: 0.01, u: '%', px: true },
+            { k: 'ringOffset', t: 'range', min: 0, max: 25, step: 0.01, u: '%', px: true },
+            { k: 'ringGrowth', t: 'range', min: 0.5, max: 2, step: 0.01, u: '×' },
+            { k: 'innerRings', t: 'range', min: 0, max: 40, step: 1 }
+          ]
         },
-        { k: 'bg', t: 'color' },
-        { k: 'previewQuality', t: 'select', o: [[700, 'pq.700'], [1200, 'pq.1200'], [1800, 'pq.1800'], [2600, 'pq.2600']] }
-      ]
-    },
-    {
-      id: 'place', items: [
-        { k: 'fit', t: 'select', o: [['contain', 'fit.contain'], ['cover', 'fit.cover']] },
-        { k: 'fitSubject', t: 'check', hint: true },
-        { k: 'imgScale', t: 'range', min: 5, max: 300, step: 0.5, u: '%' },
-        { k: 'imgX', t: 'range', min: -60, max: 60, step: 0.1, u: '%' },
-        { k: 'imgY', t: 'range', min: -60, max: 60, step: 0.1, u: '%' },
-        { k: 'rotate', t: 'range', min: -180, max: 180, step: 0.5, u: '°' },
-        { k: 'flipH', t: 'check' },
-        { k: 'flipV', t: 'check' }
-      ]
-    },
-    {
-      id: 'bg', items: [
-        { k: 'bgMode', t: 'select', hint: true, o: [['off', 'bg.off'], ['auto', 'bg.auto'], ['color', 'bg.color']] },
-        { k: 'bgKeyColor', t: 'color', show: s => s.bgMode === 'color' },
-        { k: 'bgTolerance', t: 'range', min: 0, max: 100, step: 0.5, u: '%', show: s => s.bgMode !== 'off' },
-        { k: 'bgContiguous', t: 'check', hint: true, show: s => s.bgMode !== 'off' },
-        { k: 'bgFeather', t: 'range', min: 0, max: 3, step: 0.01, u: '%', show: s => s.bgMode !== 'off' },
-        { k: 'bgBrushSize', t: 'range', min: 0.2, max: 25, step: 0.1, u: '%', hint: true }
-      ]
-    },
-    {
-      id: 'mask', items: [
-        { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
-        { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1 },
-        { k: 'maskInvert', t: 'check' },
-        { k: 'maskFillHoles', t: 'check' },
-        { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true },
-        { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true }
-      ]
-    },
-    {
-      id: 'strokes', open: true, items: [
-        { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
-        { k: 'strokeW', t: 'range', min: 0.05, max: 15, step: 0.01, u: '%', px: true, hint: true },
-        { k: 'ringGap', t: 'range', min: 0, max: 15, step: 0.01, u: '%', px: true },
-        { k: 'ringOffset', t: 'range', min: 0, max: 25, step: 0.01, u: '%', px: true },
-        { k: 'ringGrowth', t: 'range', min: 0.5, max: 2, step: 0.01, u: '×', hint: true },
-        { k: 'ringColors', t: 'palette' },
-        { k: 'palettePreset', t: 'select', o: [['', 'pal.placeholder']].concat(Object.keys(PALETTES).map(p => [p, null, p])) },
-        { k: 'haloUseBg', t: 'check' },
-        { k: 'haloColor', t: 'color', show: s => !s.haloUseBg },
-        { k: 'gapUseBg', t: 'check' },
-        { k: 'gapColor', t: 'color', show: s => !s.gapUseBg },
-        { k: 'fillUseBg', t: 'check' },
-        { k: 'fillColor', t: 'color', show: s => !s.fillUseBg },
-        { k: 'innerRings', t: 'range', min: 0, max: 40, step: 1, hint: true },
-        { k: 'aa', t: 'check' }
-      ]
-    },
-    {
-      id: 'art', items: [
-        { k: 'artMode', t: 'select', o: [['photo', 'am.photo'], ['bitmap', 'am.bitmap'], ['silhouette', 'am.silhouette'], ['none', 'am.none']] },
-        { k: 'artOpacity', t: 'range', min: 0, max: 100, step: 1, u: '%' },
-        { k: 'inkColor', t: 'color', show: s => s.artMode === 'bitmap' || s.artMode === 'silhouette' },
-        { k: 'inkOn', t: 'select', o: [['dark', 'ink.dark'], ['light', 'ink.light']], show: s => s.artMode === 'bitmap' },
-        { k: 'paperTransparent', t: 'check', show: s => s.artMode === 'bitmap' },
-        { k: 'paperColor', t: 'color', show: s => s.artMode === 'bitmap' && !s.paperTransparent },
-        { k: 'bwThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.artMode === 'bitmap' },
         {
-          k: 'ditherMode', t: 'select', show: s => s.artMode === 'bitmap',
-          o: [['none', 'dm.none'], ['halftone', 'dm.halftone'], ['bayer4', 'dm.bayer4'], ['bayer8', 'dm.bayer8'], ['floyd', 'dm.floyd'], ['noise', 'dm.noise']]
+          id: 'colours', items: [
+            { k: 'ringColors', t: 'palette' },
+            { k: 'palettePreset', t: 'select', o: [['', 'pal.placeholder']].concat(Object.keys(PALETTES).map(p => [p, null, p])) },
+            { k: 'haloUseBg', t: 'check' },
+            { k: 'haloColor', t: 'color', show: s => !s.haloUseBg },
+            { k: 'gapUseBg', t: 'check' },
+            { k: 'gapColor', t: 'color', show: s => !s.gapUseBg },
+            { k: 'fillUseBg', t: 'check' },
+            { k: 'fillColor', t: 'color', show: s => !s.fillUseBg }
+          ]
         },
-        { k: 'halftoneAngle', t: 'range', min: 0, max: 90, step: 1, u: '°', hint: true, show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
-        { k: 'halftoneShape', t: 'select', o: [['dot', 'hs.dot'], ['square', 'hs.square'], ['line', 'hs.line']], show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
-        { k: 'ditherStrength', t: 'range', min: 0, max: 200, step: 1, u: '%', show: s => s.artMode === 'bitmap' && s.ditherMode !== 'none' && s.ditherMode !== 'floyd' },
-        { k: 'ditherScale', t: 'range', min: 0.02, max: 4, step: 0.01, u: '%', px: true, hint: true, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
-        { k: 'crispPixels', t: 'check', show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
-        { k: 'artClip', t: 'check', hint: true, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
-        { k: 'brightness', t: 'range', min: -100, max: 100, step: 1, show: s => s.artMode !== 'silhouette' && s.artMode !== 'none' },
-        { k: 'contrast', t: 'range', min: -99, max: 99, step: 1, show: s => s.artMode !== 'silhouette' && s.artMode !== 'none' },
-        { k: 'saturation', t: 'range', min: 0, max: 300, step: 1, u: '%', show: s => s.artMode === 'photo' },
-        { k: 'posterize', t: 'range', min: 0, max: 12, step: 1, hint: true, show: s => s.artMode === 'photo' },
-        { k: 'artInvert', t: 'check', show: s => s.artMode !== 'silhouette' && s.artMode !== 'none' }
+        {
+          id: 'silhouette', items: [
+            { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
+            { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource !== 'alpha' },
+            { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true, hint: true },
+            { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true },
+            { k: 'maskFillHoles', t: 'check' },
+            { k: 'maskInvert', t: 'check' },
+            { k: 'aa', t: 'check' }
+          ]
+        }
       ]
     },
     {
-      id: 'draw', items: [
-        { k: 'brushType', t: 'select', o: [['marker', 'bt.marker'], ['scribble', 'bt.scribble'], ['highlighter', 'bt.highlighter']] },
-        { k: 'brushColor', t: 'color' },
-        { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true }
+      id: 'image', groups: [
+        {
+          id: 'placement', items: [
+            { k: 'align', t: 'align', hint: true },
+            { k: 'fit', t: 'select', o: [['contain', 'fit.contain'], ['cover', 'fit.cover']] },
+            { k: 'fitSubject', t: 'check' },
+            { k: 'imgScale', t: 'range', min: 5, max: 300, step: 0.5, u: '%' },
+            { k: 'imgX', t: 'range', min: -150, max: 150, step: 0.1, u: '%' },
+            { k: 'imgY', t: 'range', min: -150, max: 150, step: 0.1, u: '%' },
+            { k: 'rotate', t: 'range', min: -180, max: 180, step: 0.5, u: '°' },
+            { k: 'flipH', t: 'check' },
+            { k: 'flipV', t: 'check' }
+          ]
+        },
+        {
+          id: 'bg', items: [
+            { k: 'bgMode', t: 'select', hint: true, o: [['off', 'bg.off'], ['auto', 'bg.auto'], ['color', 'bg.color']] },
+            { k: 'bgKeyColor', t: 'color', show: s => s.bgMode === 'color' },
+            { k: 'bgTolerance', t: 'range', min: 0, max: 100, step: 0.5, u: '%', show: s => s.bgMode !== 'off' },
+            { k: 'bgFeather', t: 'range', min: 0, max: 3, step: 0.01, u: '%', show: s => s.bgMode !== 'off' },
+            { k: 'bgContiguous', t: 'check', hint: true, show: s => s.bgMode !== 'off' }
+          ]
+        },
+        {
+          id: 'treat', items: [
+            { k: 'artMode', t: 'select', o: [['photo', 'am.photo'], ['bitmap', 'am.bitmap'], ['silhouette', 'am.silhouette'], ['none', 'am.none']] },
+            { k: 'inkColor', t: 'color', show: s => s.artMode === 'bitmap' || s.artMode === 'silhouette' },
+            { k: 'inkOn', t: 'select', o: [['dark', 'ink.dark'], ['light', 'ink.light']], show: s => s.artMode === 'bitmap' },
+            { k: 'bwThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.artMode === 'bitmap' },
+            {
+              k: 'ditherMode', t: 'select', show: s => s.artMode === 'bitmap',
+              o: [['none', 'dm.none'], ['halftone', 'dm.halftone'], ['bayer4', 'dm.bayer4'], ['bayer8', 'dm.bayer8'], ['floyd', 'dm.floyd'], ['noise', 'dm.noise']]
+            },
+            { k: 'ditherScale', t: 'range', min: 0.02, max: 4, step: 0.01, u: '%', px: true, show: s => s.artMode === 'bitmap' && s.ditherMode !== 'none' },
+            { k: 'halftoneAngle', t: 'range', min: 0, max: 90, step: 1, u: '°', show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
+            { k: 'halftoneShape', t: 'select', o: [['dot', 'hs.dot'], ['square', 'hs.square'], ['line', 'hs.line']], show: s => s.artMode === 'bitmap' && s.ditherMode === 'halftone' },
+            { k: 'ditherStrength', t: 'range', min: 0, max: 200, step: 1, u: '%', show: s => s.artMode === 'bitmap' && s.ditherMode !== 'none' && s.ditherMode !== 'floyd' },
+            { k: 'paperTransparent', t: 'check', show: s => s.artMode === 'bitmap' },
+            { k: 'paperColor', t: 'color', show: s => s.artMode === 'bitmap' && !s.paperTransparent },
+            { k: 'brightness', t: 'range', min: -100, max: 100, step: 1, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
+            { k: 'contrast', t: 'range', min: -99, max: 99, step: 1, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
+            { k: 'saturation', t: 'range', min: 0, max: 300, step: 1, u: '%', show: s => s.artMode === 'photo' },
+            { k: 'posterize', t: 'range', min: 0, max: 12, step: 1, show: s => s.artMode === 'photo' },
+            { k: 'artOpacity', t: 'range', min: 0, max: 100, step: 1, u: '%' },
+            { k: 'artInvert', t: 'check', show: s => s.artMode === 'photo' || s.artMode === 'bitmap' },
+            { k: 'artClip', t: 'check', hint: true, show: s => s.artMode === 'photo' || s.artMode === 'bitmap' }
+          ]
+        },
+        {
+          id: 'grain', items: [
+            { k: 'grainAmount', t: 'range', min: 0, max: 100, step: 1, u: '%' },
+            { k: 'grainScale', t: 'range', min: 0.02, max: 3, step: 0.01, u: '%', px: true, show: s => s.grainAmount > 0 },
+            { k: 'grainMono', t: 'check', show: s => s.grainAmount > 0 },
+            { k: 'seed', t: 'num', min: 0, max: 9999, step: 1, show: s => s.grainAmount > 0 || s.ditherMode === 'noise' }
+          ]
+        }
       ]
     },
     {
-      id: 'grain', items: [
-        { k: 'grainAmount', t: 'range', min: 0, max: 100, step: 1, u: '%' },
-        { k: 'grainScale', t: 'range', min: 0.02, max: 3, step: 0.01, u: '%', px: true },
-        { k: 'grainMono', t: 'check' },
-        { k: 'seed', t: 'num', min: 0, max: 9999, step: 1, hint: true }
-      ]
-    },
-    {
-      id: 'out', items: [
-        { k: 'exportScale', t: 'select', o: [[0.5, 'es.0.5'], [1, 'es.1'], [2, 'es.2'], [3, 'es.3'], [4, 'es.4']] },
-        { k: 'svgRes', t: 'select', o: [[900, 'sr.900'], [1800, 'sr.1800'], [3000, 'sr.3000'], [4500, 'sr.4500']] },
-        { k: 'svgSimplify', t: 'range', min: 0, max: 3, step: 0.05, hint: true }
+      id: 'draw', groups: [
+        {
+          id: 'brush', items: [
+            { k: 'drawToggle', t: 'button', act: () => setTool(TOOL === 'paint' ? 'pan' : 'paint') },
+            { k: 'brushType', t: 'select', o: [['marker', 'bt.marker'], ['scribble', 'bt.scribble'], ['highlighter', 'bt.highlighter']] },
+            { k: 'brushColor', t: 'color' },
+            { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true },
+            { k: 'undoDraw', t: 'button', act: () => { S.paint.pop(); scheduleRender(); save(); } },
+            { k: 'clearDraw', t: 'button', danger: true, act: () => { S.paint = []; scheduleRender(); save(); status(t('ui.cleared')); } }
+          ]
+        }
       ]
     }
   ];
@@ -202,8 +205,8 @@
   let rafId = 0;
   let controls = [];
   let srcLabel = null;   // null = the bundled example, else the uploaded file's name
-  let TOOL = 'pan';      // pan | paint | erase | restore | pick
-  let drawing = null;    // the stroke currently under the pointer
+  let TOOL = 'pan';      // pan | paint | pick
+  let drawing = null;
 
   const $ = sel => document.querySelector(sel);
   const view = $('#view');
@@ -211,24 +214,42 @@
 
   /* ---------------- UI builder ---------------- */
   function buildUI() {
-    const root = $('#panels');
-    root.innerHTML = '';
     controls = [];
-    SCHEMA.forEach(group => {
-      const sec = U.el('section', 'grp' + (group.open ? '' : ' closed'));
-      const head = U.el('h3', 'grp-h');
-      head.appendChild(U.el('span', 'chev'));
-      head.appendChild(document.createTextNode(t('g.' + group.id)));
-      head.onclick = () => sec.classList.toggle('closed');
-      sec.appendChild(head);
-      const body = U.el('div', 'grp-b');
-      group.items.forEach(item => body.appendChild(buildControl(item)));
-      sec.appendChild(body);
-      root.appendChild(sec);
-      if (group.id === 'strokes') sec.appendChild(U.el('div', 'measure')).id = 'measure';
-    });
+    buildCanvasBlock();
+    buildTabStrip();
+    buildTabBody();
     applyStaticText();
     refresh();
+  }
+
+  function buildCanvasBlock() {
+    const root = $('#canvasBlock');
+    root.innerHTML = '';
+    CANVAS_ITEMS.forEach(it => root.appendChild(buildControl(it)));
+  }
+
+  function buildTabStrip() {
+    const strip = $('#tabs');
+    strip.innerHTML = '';
+    TABS.forEach(tab => {
+      const b = U.el('button', S.tab === tab.id ? 'on' : '', t('tab.' + tab.id));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', S.tab === tab.id);
+      b.onclick = () => { S.tab = tab.id; buildUI(); save(); };
+      strip.appendChild(b);
+    });
+  }
+
+  function buildTabBody() {
+    const root = $('#panels');
+    root.innerHTML = '';
+    const tab = TABS.find(x => x.id === S.tab) || TABS[0];
+    tab.groups.forEach(group => {
+      const sec = U.el('section', 'sec');
+      sec.appendChild(U.el('h3', 'sec-h', t('g.' + group.id)));
+      group.items.forEach(item => sec.appendChild(buildControl(item)));
+      root.appendChild(sec);
+    });
   }
 
   function applyStaticText() {
@@ -239,16 +260,13 @@
     $('#exportPng').textContent = t('ui.png');
     $('#exportSvg').textContent = t('ui.svg');
     $('#stage').dataset.drop = t('ui.dropOver');
-    const toolNames = { pan: 'tPan', paint: 'tPaint', erase: 'tErase', restore: 'tRestore', pick: 'tPick' };
+    $('#srcinfo').textContent = srcLabel === null ? t('ui.exampleLoaded') : srcLabel;
+    const names = { pan: 'tPan', paint: 'tPaint', pick: 'tPick' };
     [...document.querySelectorAll('#tools button')].forEach(b => {
-      b.textContent = t('ui.' + toolNames[b.dataset.tool]);
+      b.textContent = t('ui.' + names[b.dataset.tool]);
       b.classList.toggle('on', b.dataset.tool === TOOL);
       b.setAttribute('aria-pressed', b.dataset.tool === TOOL);
     });
-    $('#clearDraw').textContent = t('ui.clearDraw');
-    $('#undoDraw').textContent = t('ui.undoDraw');
-    $('#clearBg').textContent = t('ui.clearBg');
-    $('#srcinfo').textContent = srcLabel === null ? t('ui.exampleLoaded') : srcLabel;
     document.documentElement.lang = I18N.getLang();
     [...document.querySelectorAll('#lang button')].forEach(b => {
       b.classList.toggle('on', b.dataset.lang === I18N.getLang());
@@ -259,11 +277,23 @@
   function buildControl(it) {
     const row = U.el('div', 'row');
     const lab = U.el('label', 'lab', t('l.' + it.k));
-    row.appendChild(lab);
     const val = U.el('span', 'val');
     let input;
 
-    const commit = (v, heavy) => { S[it.k] = v; onChange(it, heavy); };
+    const commit = (v) => { S[it.k] = v; onChange(it); };
+
+    if (it.t === 'button') {
+      input = U.el('button', 'btn small full' + (it.danger ? ' danger' : ''), t('l.' + it.k));
+      input.type = 'button';
+      input.onclick = it.act;
+      row.classList.add('col');
+      row.appendChild(input);
+      it._row = row; it._input = input; it._val = val;
+      controls.push(it);
+      return row;
+    }
+
+    row.appendChild(lab);
 
     if (it.t === 'range') {
       input = U.el('input');
@@ -288,13 +318,12 @@
       if (it.min != null) input.min = it.min;
       if (it.max != null) input.max = it.max;
       input.step = it.step || 1;
-      input.onchange = () => commit(parseFloat(input.value) || 0, true);
+      input.onchange = () => commit(parseFloat(input.value) || 0);
       row.appendChild(input);
     } else if (it.t === 'select') {
       input = U.el('select');
       input.id = 'c-' + it.k;
       it.o.forEach(o => {
-        // o = [value, i18nKey] or [value, null, literalLabel]
         const op = U.el('option', null, o[1] ? t('o.' + o[1]) : o[2]);
         op.value = o[0];
         input.appendChild(op);
@@ -302,14 +331,14 @@
       input.onchange = () => {
         let v = input.value;
         if (typeof it.o[0][0] === 'number') v = parseFloat(v);
-        commit(v, true);
+        commit(v);
       };
       row.appendChild(input);
     } else if (it.t === 'check') {
       input = U.el('input');
       input.type = 'checkbox';
       input.id = 'c-' + it.k;
-      input.onchange = () => commit(input.checked, true);
+      input.onchange = () => commit(input.checked);
       row.classList.add('chk');
       row.insertBefore(input, lab);
       lab.htmlFor = input.id;
@@ -324,6 +353,19 @@
       row.classList.add('col');
       row.appendChild(input);
       it._render = () => renderPalette(input);
+    } else if (it.t === 'align') {
+      input = U.el('div', 'align');
+      row.classList.add('col');
+      for (let vy = 0; vy < 3; vy++) {
+        for (let hx = 0; hx < 3; hx++) {
+          const b = U.el('button');
+          b.type = 'button';
+          b.title = ['left', 'centre', 'right'][hx] + ' / ' + ['top', 'middle', 'bottom'][vy];
+          b.onclick = () => alignImage(hx / 2, vy / 2);
+          input.appendChild(b);
+        }
+      }
+      row.appendChild(input);
     }
 
     if (it.hint) {
@@ -346,25 +388,40 @@
       inp.value = c;
       inp.oninput = () => { S.ringColors[i] = inp.value; scheduleRender(); save(); };
       const del = U.el('button', 'x', '×');
+      del.type = 'button';
       del.onclick = () => {
         if (S.ringColors.length <= 1) return;
         S.ringColors.splice(i, 1);
         renderPalette(box);
-        scheduleRender();
-        save();
+        scheduleRender(); save();
       };
       w.appendChild(inp);
       w.appendChild(del);
       box.appendChild(w);
     });
     const add = U.el('button', 'chip add', '+');
+    add.type = 'button';
     add.onclick = () => {
       S.ringColors.push(S.ringColors[S.ringColors.length - 1] || '#000000');
       renderPalette(box);
-      scheduleRender();
-      save();
+      scheduleRender(); save();
     };
     box.appendChild(add);
+  }
+
+  /* Move the image so the subject — plus the space its strokes need — sits against
+     the chosen edge. Aligning left should not push the outermost stroke off. */
+  function alignImage(hx, vy) {
+    const c = Engine.canvasPx(S);
+    const r = Engine.subjectRect(IMG, S, c.W, c.H, TOKEN);
+    if (!r) return;
+    const unit = Engine.computeUnit(S.basis, c.W, c.H);
+    const pad = Engine.strokeExtent(S, unit);
+    const x0 = r.x - pad, y0 = r.y - pad;
+    const w = r.w + pad * 2, h = r.h + pad * 2;
+    S.imgX = U.clamp(S.imgX + (hx * (c.W - w) - x0) / unit * 100, -150, 150);
+    S.imgY = U.clamp(S.imgY + (vy * (c.H - h) - y0) / unit * 100, -150, 150);
+    refresh(); scheduleRender(); save();
   }
 
   /* ---------------- reactions ---------------- */
@@ -392,6 +449,14 @@
       const vis = it.show ? it.show(S) : true;
       it._row.style.display = vis ? '' : 'none';
       if (!vis) return;
+      if (it.t === 'button') {
+        if (it.k === 'drawToggle') {
+          it._input.textContent = t(TOOL === 'paint' ? 'l.drawToggleOn' : 'l.drawToggle');
+          it._input.classList.toggle('active', TOOL === 'paint');
+        }
+        return;
+      }
+      if (it.t === 'align') return;
       const v = S[it.k];
       if (it.t === 'range') {
         it._input.value = v;
@@ -403,36 +468,6 @@
       else if (it.t === 'palette') it._render();
       else if (it._input && it._input.tagName) it._input.value = v;
     });
-    updateMeasure(px, unit);
-  }
-
-  /* the "does my stroke match everywhere" readout */
-  function updateMeasure(px, unit) {
-    const m = $('#measure');
-    if (!m) return;
-    const strokePx = S.strokeW / 100 * unit;
-    const mm = S.units === 'px' ? null : strokePx / S.dpi * 25.4;
-    const band = Engine.ringBands(S, unit, S.ringCount).max;
-
-    const samples = [
-      [t('m.igpost'), 1080, 1080],
-      [t('m.a4'), 2480, 3508],
-      [t('m.banner'), 5906, 1969]
-    ];
-    const rows = samples.map(s => {
-      const u = Engine.computeUnit(S.basis, s[1], s[2]);
-      const w = S.strokeW / 100 * u;
-      const rel = w / Math.min(s[1], s[2]) * 100;
-      return '<tr><td>' + s[0] + '</td><td>' + U.nice(w, 1) + 'px</td><td>' + U.nice(rel, 2) + '%</td></tr>';
-    }).join('');
-
-    m.innerHTML =
-      '<div class="mh">' + t('m.title') + '</div>' +
-      '<div class="mbig">' + U.nice(strokePx, 1) + ' px' +
-      (mm ? '<span> / ' + U.nice(mm, 2) + ' mm</span>' : '') + '</div>' +
-      '<div class="msub">' + t('m.basis', U.nice(unit, 0), U.nice(band, 0), U.nice(band / unit * 100, 2)) + '</div>' +
-      '<table class="mt"><tbody>' + rows + '</tbody></table>' +
-      '<div class="hint2">' + t('m.note') + '</div>';
   }
 
   /* ---------------- render ---------------- */
@@ -461,10 +496,9 @@
     vctx.drawImage(out, 0, 0);
     fitView();
     const mp = c.W * c.H / 1e6;
-    $('#dims').textContent = c.W + ' × ' + c.H + ' px' +
-      (S.units !== 'px' ? '  (' + S.cw + '×' + S.ch + ' ' + S.units + ' @' + S.dpi + ')' : '');
-    $('#scaleinfo').textContent = t('ui.preview') + ' ' + rw + '×' + rh + ' · ' + Math.round(performance.now() - t0) + 'ms';
-    status(mp > 40 ? t('ui.heavy', U.nice(mp, 0)) : '');
+    $('#dims').textContent = c.W + ' × ' + c.H + ' px';
+    $('#scaleinfo').textContent = Math.round(performance.now() - t0) + 'ms';
+    if (mp > 40) status(t('ui.heavy', U.nice(mp, 0)));
   }
 
   function fitView() {
@@ -502,8 +536,6 @@
         IMG = im;
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
-        S.bgBrush = [];
-        S.bgRev++;
         srcLabel = file.name + ' — ' + im.naturalWidth + '×' + im.naturalHeight;
         $('#srcinfo').textContent = srcLabel;
         scheduleRender();
@@ -513,7 +545,6 @@
     fr.readAsDataURL(file);
   }
 
-  /* The bundled example. Falls back to a generated one if no file is present. */
   function exampleImage(i) {
     i = i || 0;
     if (i >= EXAMPLE_SRC.length) { generatedExample(); return; }
@@ -530,8 +561,8 @@
     im.src = EXAMPLE_SRC[i];
   }
 
-  /* Transparent background, so it behaves like the real cut-out example and the
-     default Photo mode still shows the strokes around it. */
+  /* Transparent background, so it behaves like a real cut-out and the default
+     Photo mode still shows the strokes around it. */
   function generatedExample() {
     const c = U.createCanvas(1000, 1000);
     const g = c.getContext('2d');
@@ -555,16 +586,12 @@
     im.src = c.toDataURL();
   }
 
-
   /* ---------------- artboard tools ---------------- */
 
-  /* Pointer -> canvas pixel space. The canvas is displayed at a CSS size that
-     differs from its backing store, so scale by the CONTENT box: using the
-     border-box rect offsets every point by the border width. */
+  /* Pointer -> canvas pixel space. clientWidth/Height round to whole pixels, so
+     derive the content box from the fractional rect instead. */
   function pointerPos(e) {
     const r = view.getBoundingClientRect();
-    // clientWidth/Height round to whole pixels; the rect does not, so derive the
-    // content box from the rect and only discount the border via clientLeft/Top
     const bx = view.clientLeft, by = view.clientTop;
     const cw = r.width - bx * 2 || 1;
     const ch = r.height - by * 2 || 1;
@@ -574,37 +601,18 @@
     };
   }
 
-  const BRUSH_TOOLS = { paint: 1, erase: 1, restore: 1 };
-
   function setTool(name) {
     TOOL = name;
     const board = $('#board');
-    board.classList.toggle('tool', !!BRUSH_TOOLS[name]);
+    board.classList.toggle('tool', name === 'paint');
     board.classList.toggle('picking', name === 'pick');
-    if (!BRUSH_TOOLS[name]) clearCursor();
-    const hints = { paint: 'hintPaint', erase: 'hintErase', restore: 'hintRestore', pick: 'hintPick' };
+    if (name !== 'paint') clearCursor();
+    const hints = { paint: 'hintPaint', pick: 'hintPick' };
     status(hints[name] ? t('ui.' + hints[name]) : '');
     applyStaticText();
+    refresh();
   }
 
-  /* nib diameter in canvas pixels, for both the ring and the live trail */
-  function brushDiameter() {
-    let d;
-    if (TOOL === 'paint') {
-      d = S.brushWidth / 100 * Engine.computeUnit(S.basis, view.width, view.height);
-    } else if (IMG) {
-      // the background brush is sized against the photo, so scale it through the
-      // placement to show its true footprint on the artboard
-      const iw = IMG.naturalWidth || IMG.width, ih = IMG.naturalHeight || IMG.height;
-      const inSource = S.bgBrushSize / 100 * Math.min(iw, ih);
-      d = inSource * Engine.sourceScale(IMG, S, view.width, view.height);
-    } else {
-      d = 20;
-    }
-    return Math.max(4, Math.min(d, Math.max(view.width, view.height) * 2));
-  }
-
-  /* --- brush cursor: without it you cannot tell where the nib is or how big --- */
   function clearCursor() {
     const c = $('#cursor');
     c.getContext('2d').clearRect(0, 0, c.width, c.height);
@@ -612,36 +620,16 @@
 
   function drawCursor(e) {
     const c = $('#cursor');
-    if (!BRUSH_TOOLS[TOOL]) return;
+    if (TOOL !== 'paint') return;
     if (c.width !== view.width || c.height !== view.height) {
       c.width = view.width; c.height = view.height;
     }
     const x = c.getContext('2d');
     x.clearRect(0, 0, c.width, c.height);
     const q = pointerPos(e);
-
-    // live trail for the background brushes: knocking a hole in the photo means
-    // redoing the removal and the distance field, far too slow to do per frame,
-    // so show the mark immediately and commit it when the drag ends
-    if (drawing && drawing.kind === 'bg' && drawing.trail && drawing.trail.length) {
-      x.save();
-      x.globalAlpha = 0.5;
-      x.strokeStyle = drawing.stroke.kind === 'erase' ? '#F4492E' : '#22945A';
-      x.lineCap = 'round';
-      x.lineJoin = 'round';
-      x.lineWidth = brushDiameter();
-      const tr = drawing.trail;
-      x.beginPath();
-      x.moveTo(tr[0][0], tr[0][1]);
-      for (let i = 1; i < tr.length; i++) x.lineTo(tr[i][0], tr[i][1]);
-      x.stroke();
-      x.restore();
-    }
-
-    const d = brushDiameter();
-
+    const d = Math.max(4, S.brushWidth / 100 * Engine.computeUnit(S.basis, view.width, view.height));
     x.lineWidth = Math.max(1, view.width / 600);
-    x.strokeStyle = TOOL === 'erase' ? '#F4492E' : TOOL === 'restore' ? '#22945A' : '#16191A';
+    x.strokeStyle = '#16191A';
     x.beginPath();
     x.arc(q.x, q.y, d / 2, 0, Math.PI * 2);
     x.stroke();
@@ -660,35 +648,18 @@
       if (!hex) { status(t('ui.pickFail'), true); return; }
       S.bgKeyColor = hex;
       if (S.bgMode !== 'color') S.bgMode = 'color';
+      if (S.tab !== 'image') { S.tab = 'image'; buildUI(); }
       refresh(); scheduleRender(); save();
       status(t('ui.picked', hex));
       return;
     }
 
     view.setPointerCapture(e.pointerId);
-
-    if (TOOL === 'paint') {
-      drawing = {
-        kind: 'paint',
-        stroke: {
-          color: S.brushColor, width: S.brushWidth, type: S.brushType,
-          points: [[q.x / view.width, q.y / view.height]]
-        }
-      };
-      S.paint.push(drawing.stroke);
-    } else {
-      // erase / restore act on the photo, so points live in source-image space
-      const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
-      if (!sp) { try { view.releasePointerCapture(e.pointerId); } catch (err) { } return; }
-      drawing = {
-        kind: 'bg',
-        trail: [[q.x, q.y]],
-        stroke: { kind: TOOL, size: S.bgBrushSize, points: [[sp.x, sp.y]] }
-      };
-      S.bgBrush.push(drawing.stroke);
-      drawCursor(e);
-      return;                     // committed on pointerup, not now
-    }
+    drawing = {
+      color: S.brushColor, width: S.brushWidth, type: S.brushType,
+      points: [[q.x / view.width, q.y / view.height]]
+    };
+    S.paint.push(drawing);
     scheduleRender();
   }
 
@@ -696,36 +667,17 @@
     drawCursor(e);
     if (!drawing) return;
     const q = pointerPos(e);
-    const pts = drawing.stroke.points;
-
-    if (drawing.kind === 'paint') {
-      const nx = q.x / view.width, ny = q.y / view.height;
-      const last = pts[pts.length - 1];
-      if (Math.hypot(nx - last[0], ny - last[1]) < 0.002) return;
-      pts.push([nx, ny]);
-      scheduleRender();          // cheap: the base layer is cached
-      return;
-    }
-
-    const sp = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
-    if (!sp) return;
-    const last = pts[pts.length - 1];
-    if (Math.hypot(sp.x - last[0], sp.y - last[1]) < 0.003) return;
-    pts.push([sp.x, sp.y]);
-    drawing.trail.push([q.x, q.y]);
-    drawCursor(e);               // the trail is the feedback; no re-render yet
+    const nx = q.x / view.width, ny = q.y / view.height;
+    const last = drawing.points[drawing.points.length - 1];
+    if (Math.hypot(nx - last[0], ny - last[1]) < 0.002) return;
+    drawing.points.push([nx, ny]);
+    scheduleRender();          // cheap: the base layer is cached
   }
 
   function endStroke(e) {
     if (!drawing) return;
-    const wasBg = drawing.kind === 'bg';
     drawing = null;
     try { view.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
-    if (wasBg) {
-      S.bgRev++;                  // one real pass now the drag is over
-      clearCursor();
-      scheduleRender();
-    }
     save();
   }
 
@@ -739,19 +691,6 @@
     view.addEventListener('pointercancel', endStroke);
     view.addEventListener('pointerleave', () => { if (!drawing) clearCursor(); });
 
-    $('#undoDraw').onclick = () => { S.paint.pop(); scheduleRender(); save(); };
-    $('#clearDraw').onclick = () => {
-      S.paint = [];
-      scheduleRender(); save();
-      status(t('ui.cleared'));
-    };
-    $('#clearBg').onclick = () => {
-      S.bgBrush = [];
-      S.bgRev++;
-      scheduleRender(); save();
-      status(t('ui.cleared'));
-    };
-
     window.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && S.paint.length) {
@@ -760,7 +699,7 @@
         scheduleRender(); save();
         return;
       }
-      const keys = { v: 'pan', b: 'paint', e: 'erase', r: 'restore', i: 'pick' };
+      const keys = { v: 'pan', b: 'paint', i: 'pick' };
       if (keys[e.key]) setTool(keys[e.key]);
     });
   }
@@ -813,7 +752,6 @@
     S.lang = l;
     I18N.setLang(l);
     buildUI();
-    doRender();
     save();
   }
 
@@ -864,11 +802,12 @@
     };
     window.addEventListener('resize', fitView);
 
-    // debug handle: lets you poke at state from the console
     window.OFFSET = {
       get settings() { return S; },
       get image() { return IMG; },
+      get tool() { return TOOL; },
       render: doRender,
+      align: alignImage,
       defaults: defaults,
       setLang: setLang
     };

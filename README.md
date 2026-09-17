@@ -47,9 +47,6 @@ height, or diagonal. Preview and export run the same code with a different
 `unit`, so a 2.4% stroke is 25.9px on a 1080 post, 59.5px on A4 at 300dpi and
 47.3px on a 3m banner: identical proportion, correct physical size.
 
-The **Stroke weight check** card under Strokes shows the current weight in px and
-mm, plus what it resolves to in three reference formats.
-
 Measured across a 8× range (540 / 1080 / 4320px), a 2.4% stroke rendered at
 2.31–2.45% of canvas width; the residual is sub-pixel scanline quantisation.
 
@@ -88,13 +85,12 @@ and dot shape) with a dot size that also scales with the canvas.
 **Background removal** — Auto reads the key colour from the four corners; or pick
 one with the eyedropper. Tolerance, edge softening, and a contiguous toggle: on, it
 only eats background connected to the border, so a colour that also appears inside
-the subject survives; off, it removes that colour everywhere. The Erase and Restore
-brushes fix whatever the automatic pass got wrong — brush marks are stored in
-source-image coordinates, so they hold when you change canvas, scale or format,
-and the most recently drawn stroke over a pixel wins.
+the subject survives; off, it removes that colour everywhere. Removal is automatic only; there is no manual touch-up brush, so a photo whose
+background shares colours with the subject may need the tolerance and the
+contiguous toggle rather than painting over the mistakes.
 
 **Drawing** — marker, scribble or highlighter, any colour, on a layer above the
-artwork. Nib width is a percentage of the basis dimension like everything else, and
+artwork, in its own tab. Nib width is a percentage of the basis dimension like everything else, and
 strokes are stored in normalised canvas coordinates, so a scribble drawn on the
 1200px preview comes out at the same proportion on an 8000px banner. Ctrl+Z undoes
 the last stroke.
@@ -110,28 +106,28 @@ set to anything but Random noise, the seed does nothing.
 **Export** — PNG at 0.5×–4× the canvas size, or SVG with the strokes as vector
 paths (the image itself stays raster inside the SVG, at full export resolution).
 
-## Tools on the artboard
+## Layout
 
-The strip above the canvas switches what a drag does. Keyboard: `V` move, `B` draw,
-`E` erase, `R` restore, `I` pick colour. A ring follows the pointer at the nib's
-true size.
+Canvas format and background sit above three tabs:
 
-Drawing is cheap because the rings and the treated artwork are cached as one base
-layer, so a drag redraws only the strokes on top: about 0.4ms a frame instead of
-re-running the distance transform and the halftone screen.
+**Strokes** — count, weight, gap, offset, growth and inward strokes; the colour
+list and the colours for gaps, offset and behind the image; and the silhouette
+controls, since their only job is to shape the strokes.
 
-The background brushes cannot work that way, since punching a hole in the photo
-changes the silhouette and therefore everything downstream. They paint a live
-trail on an overlay while you drag and commit once on release.
+**Image** — alignment, placement, background removal, treatment and grain.
 
-## Interface
+**Drawing** — brush type, colour, nib width, undo and clear.
 
-Light, compact, and built on the project palette. None of the five colours pass
-4.5:1 as text on white, so they are used at full strength as fills with dark text
-on top, and small coloured text uses a same-hue variant darkened to 4.5:1. One job
-each: yellow the primary action, teal anything interactive, pink the active tool
-and the computed pixel values, green the format-match confirmation, red errors and
-destructive actions.
+*Align* snaps the subject to any of nine positions. It counts in the space the
+strokes need, so aligning left puts the outermost stroke against the edge rather
+than off the canvas.
+
+The toolbar has three tools: Move, Draw and Pick colour (`V`, `B`, `I`). A ring
+follows the pointer at the nib's true size while drawing.
+
+Drawing stays cheap because the rings and the treated artwork are cached as one
+base layer, so a drag redraws only the strokes on top — about 0.4ms a frame rather
+than re-running the distance transform and the halftone screen.
 
 ## Language
 

@@ -5,14 +5,18 @@
   'use strict';
 
   const en = {
+    tab: { strokes: 'Strokes', image: 'Image', draw: 'Drawing' },
     g: {
-      canvas: 'Canvas', place: 'Image placement', bg: 'Background removal', mask: 'Silhouette',
-      strokes: 'Strokes', art: 'Image treatment', draw: 'Drawing', grain: 'Grain', out: 'Export'
+      canvas: 'Canvas', shape: 'Shape', colours: 'Colours', silhouette: 'Silhouette',
+      placement: 'Placement', bg: 'Background', treat: 'Treatment', grain: 'Grain',
+      brush: 'Brush'
     },
     l: {
       sizePreset: 'Format', units: 'Units', cw: 'Width', ch: 'Height', dpi: 'DPI',
       basis: 'Scale strokes to', bg: 'Background', previewQuality: 'Preview quality',
-      fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale', imgX: 'Offset X', imgY: 'Offset Y', rotate: 'Rotate',
+      align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
+      drawToggle: 'Start drawing', drawToggleOn: 'Stop drawing',
+      undoDraw: 'Undo last stroke', clearDraw: 'Clear drawing', imgX: 'Offset X', imgY: 'Offset Y', rotate: 'Rotate',
       flipH: 'Flip horizontal', flipV: 'Flip vertical',
       maskSource: 'Detect shape from', maskThreshold: 'Threshold', maskInvert: 'Invert shape',
       maskFillHoles: 'Fill enclosed holes', maskSmooth: 'Smooth outline', maskExpand: 'Expand / contract',
@@ -32,7 +36,6 @@
       exportScale: 'PNG scale', svgRes: 'SVG trace detail', svgSimplify: 'SVG smoothing',
       bgMode: 'Remove', bgKeyColor: 'Colour to remove', bgTolerance: 'Tolerance',
       bgContiguous: 'Only from the edges inwards', bgFeather: 'Soften edge',
-      bgBrushSize: 'Brush size',
       halftoneAngle: 'Screen angle', halftoneShape: 'Dot shape',
       brushColor: 'Colour', brushWidth: 'Nib width', brushType: 'Brush'
     },
@@ -47,9 +50,9 @@
       posterize: '0 = off',
       seed: 'Starting number for the random pattern used by grain and by the Random noise dither. The same seed always draws the same speckle, so the preview and the export match; change it to reshuffle. It has no effect when grain is 0 and the dither is not Random noise.',
       svgSimplify: 'Higher = fewer points, softer curves.',
+      align: 'Snaps the subject to an edge or the centre. The space the strokes need is counted in, so the outermost stroke lands against the edge instead of off the canvas.',
       bgMode: 'Auto reads the colour from the four corners. Pick a colour lets you sample one with the eyedropper in the toolbar.',
       bgContiguous: 'On, it only eats background connected to the border, so a colour that also appears inside the subject survives. Off, it removes that colour everywhere.',
-      bgBrushSize: 'Use Erase and Restore in the toolbar to fix what the automatic pass got wrong. Marks are stored against the photo, so they hold when you change canvas or scale.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
     },
@@ -99,26 +102,27 @@
       svgFail: 'SVG export failed: ',
       heavy: (mp) => 'Heads up: export is ' + mp + ' megapixels — it may take a while.',
       tPan: 'Move', tPaint: 'Draw', tErase: 'Erase', tRestore: 'Restore', tPick: 'Pick colour',
-      clearDraw: 'Clear drawing', undoDraw: 'Undo stroke', clearBg: 'Clear brush marks',
       picked: (c) => 'Background colour set to ' + c,
       pickFail: 'That point is outside the photo.',
       cleared: 'Cleared.',
       hintPaint: 'Drag on the artboard to draw.',
-      hintErase: 'Paint over what should disappear.',
-      hintRestore: 'Paint over what the removal took by mistake.',
       hintPick: 'Click the colour you want gone.'
     }
   };
 
   const pt = {
+    tab: { strokes: 'Contornos', image: 'Imagem', draw: 'Desenho' },
     g: {
-      canvas: 'Tela', place: 'Posicionamento da imagem', bg: 'Remover fundo', mask: 'Silhueta',
-      strokes: 'Contornos', art: 'Tratamento da imagem', draw: 'Desenho', grain: 'Grão', out: 'Exportar'
+      canvas: 'Tela', shape: 'Forma', colours: 'Cores', silhouette: 'Silhueta',
+      placement: 'Posicionamento', bg: 'Fundo', treat: 'Tratamento', grain: 'Grão',
+      brush: 'Pincel'
     },
     l: {
       sizePreset: 'Formato', units: 'Unidades', cw: 'Largura', ch: 'Altura', dpi: 'DPI',
       basis: 'Escalar contornos a', bg: 'Fundo', previewQuality: 'Qualidade da pré-visualização',
-      fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala', imgX: 'Deslocamento X', imgY: 'Deslocamento Y', rotate: 'Rodar',
+      align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
+      drawToggle: 'Começar a desenhar', drawToggleOn: 'Parar de desenhar',
+      undoDraw: 'Anular último traço', clearDraw: 'Limpar desenho', imgX: 'Deslocamento X', imgY: 'Deslocamento Y', rotate: 'Rodar',
       flipH: 'Espelhar na horizontal', flipV: 'Espelhar na vertical',
       maskSource: 'Detetar forma a partir de', maskThreshold: 'Limiar', maskInvert: 'Inverter forma',
       maskFillHoles: 'Preencher buracos fechados', maskSmooth: 'Suavizar contorno', maskExpand: 'Expandir / contrair',
@@ -138,7 +142,6 @@
       exportScale: 'Escala do PNG', svgRes: 'Detalhe do traçado SVG', svgSimplify: 'Suavização do SVG',
       bgMode: 'Remover', bgKeyColor: 'Cor a remover', bgTolerance: 'Tolerância',
       bgContiguous: 'Só das margens para dentro', bgFeather: 'Suavizar limite',
-      bgBrushSize: 'Tamanho do pincel',
       halftoneAngle: 'Ângulo da trama', halftoneShape: 'Forma do ponto',
       brushColor: 'Cor', brushWidth: 'Espessura do traço', brushType: 'Pincel'
     },
@@ -153,9 +156,9 @@
       posterize: '0 = desligado',
       seed: 'Número inicial do padrão aleatório usado pelo grão e pelo pontilhado Ruído aleatório. A mesma semente desenha sempre o mesmo salpico, por isso a pré-visualização e a exportação coincidem; altere-a para baralhar. Não tem efeito quando o grão está a 0 e o pontilhado não é Ruído aleatório.',
       svgSimplify: 'Mais alto = menos pontos, curvas mais suaves.',
+      align: 'Encosta o motivo a uma margem ou ao centro. O espaço de que os contornos precisam entra na conta, por isso o contorno mais exterior fica encostado à margem em vez de sair da tela.',
       bgMode: 'O automático lê a cor dos quatro cantos. Escolher uma cor permite recolhê-la com o conta-gotas na barra de ferramentas.',
       bgContiguous: 'Ligado, só come o fundo ligado à margem, por isso uma cor que também apareça dentro do motivo sobrevive. Desligado, remove essa cor em todo o lado.',
-      bgBrushSize: 'Use Apagar e Restaurar na barra de ferramentas para corrigir o que a passagem automática falhou. As marcas ficam guardadas em relação à fotografia, por isso aguentam mudanças de tela ou de escala.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
     },
@@ -205,13 +208,10 @@
       svgFail: 'Falha ao exportar SVG: ',
       heavy: (mp) => 'Atenção: a exportação tem ' + mp + ' megapíxeis — pode demorar.',
       tPan: 'Mover', tPaint: 'Desenhar', tErase: 'Apagar', tRestore: 'Restaurar', tPick: 'Recolher cor',
-      clearDraw: 'Limpar desenho', undoDraw: 'Anular traço', clearBg: 'Limpar marcas',
       picked: (c) => 'Cor de fundo definida como ' + c,
       pickFail: 'Esse ponto está fora da fotografia.',
       cleared: 'Limpo.',
       hintPaint: 'Arraste sobre a prancha para desenhar.',
-      hintErase: 'Pinte sobre o que deve desaparecer.',
-      hintRestore: 'Pinte sobre o que a remoção levou por engano.',
       hintPick: 'Clique na cor que quer eliminar.'
     }
   };
