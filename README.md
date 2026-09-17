@@ -68,8 +68,11 @@ a lot of empty margin — the bundled example is 1080×810 but its subject occup
 only 513×659 — which otherwise makes Scale mean "how big is the file" rather than
 "how big is the subject". It does nothing for images without transparency.
 
-**Silhouette** — shape source (auto/alpha/dark/light), threshold, invert, fill
-holes, smooth outline, expand/contract.
+**Silhouette** — shape source, threshold, invert, fill holes, smooth outline,
+expand/contract. *Auto* means the alpha channel: a cut-out gets strokes around
+the subject, and an ordinary opaque photo gets them around the picture's own
+rectangle. Dark and light pixel thresholds are there when you want them, but they
+are no longer what an upload silently falls back to.
 
 **Strokes** — count, weight, gap, offset from image, per-stroke growth multiplier,
 an editable colour list that cycles, separate colours for the offset gap / the
@@ -117,6 +120,14 @@ controls, since their only job is to shape the strokes.
 **Image** — alignment, placement, background removal, treatment and grain.
 
 **Drawing** — brush type, colour, nib width, undo and clear.
+
+An upload arrives untouched: the whole picture, at 100%, with no cropping to the
+cut-out and no processing. Background removal, clipping and treatment are things
+you turn on afterwards.
+
+Drag the picture on the artboard to move it and use the wheel to zoom, which
+zooms about the pointer so the bit under the cursor stays put. The sliders and
+the artboard are the same two numbers, so either works.
 
 *Align* snaps the subject to any of nine positions. It aligns the subject's own
 bounding box, so strokes may bleed past the edge — lower Scale if you want them

@@ -50,7 +50,7 @@
       seed: 'Starting number for the random pattern used by grain and by the Random noise dither. The same seed always draws the same speckle, so the preview and the export match; change it to reshuffle. It has no effect when grain is 0 and the dither is not Random noise.',
       svgSimplify: 'Higher = fewer points, softer curves.',
       bgToggle: 'Reads the backdrop colour from the four corners and lifts it out from the edges inwards, judging how much slack to allow from how closely the corners agree. Best on a plain or evenly lit backdrop.',
-      align: 'Snaps the subject to an edge or the centre. Strokes may bleed past the edge; lower Scale if you want them to stay inside.',
+      align: 'Strokes may bleed past the edge; lower Scale to keep them inside.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
     },
@@ -150,7 +150,7 @@
       seed: 'Número inicial do padrão aleatório usado pelo grão e pelo pontilhado Ruído aleatório. A mesma semente desenha sempre o mesmo salpico, por isso a pré-visualização e a exportação coincidem; altere-a para baralhar. Não tem efeito quando o grão está a 0 e o pontilhado não é Ruído aleatório.',
       svgSimplify: 'Mais alto = menos pontos, curvas mais suaves.',
       bgToggle: 'Lê a cor do fundo pelos quatro cantos e retira-a das margens para dentro, ajustando a margem de erro conforme os cantos concordem entre si. Funciona melhor com fundos lisos ou de iluminação uniforme.',
-      align: 'Encosta o motivo a uma margem ou ao centro. Os contornos podem sair pela margem; reduza a Escala se os quiser manter dentro da tela.',
+      align: 'Os contornos podem sair pela margem; reduza a Escala para os manter dentro.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
     },

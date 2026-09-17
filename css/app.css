@@ -85,25 +85,26 @@ body{
   text-transform:uppercase; color:var(--ink-3);
 }
 
-/* ---------- alignment grid ---------- */
-.align{
-  display:grid; grid-template-columns:repeat(3,1fr); gap:3px;
-  width:84px; margin-top:4px;
-}
-.align button{
-  aspect-ratio:1; border:1px solid var(--line-2); background:var(--paper);
-  border-radius:3px; cursor:pointer; padding:0; position:relative;
-}
-.align button::after{
-  content:""; position:absolute; inset:3px; background:var(--ink-3); border-radius:1px;
-}
-.align button:hover{border-color:var(--teal)}
-.align button:hover::after{background:var(--teal)}
-.align button:focus-visible{outline:none; box-shadow:0 0 0 2px rgba(28,174,166,.35)}
-
 .btn.full{width:100%; margin-top:4px}
 .btn.active{background:var(--pink); border-color:var(--pink); color:#fff}
 .btn.active:hover{background:var(--pink); filter:brightness(.95)}
+
+/* ---------- alignment grid ---------- */
+.align{display:grid; grid-template-columns:repeat(3,19px); grid-auto-rows:19px; gap:3px}
+.align button{
+  border:1px solid var(--line-2); background:var(--paper); border-radius:3px;
+  cursor:pointer; padding:3px; display:flex;
+}
+.align button::after{content:""; width:5px; height:5px; background:var(--ink-3); border-radius:1px}
+.align button[data-h="0"]{justify-content:flex-start}
+.align button[data-h="1"]{justify-content:center}
+.align button[data-h="2"]{justify-content:flex-end}
+.align button[data-v="0"]{align-items:flex-start}
+.align button[data-v="1"]{align-items:center}
+.align button[data-v="2"]{align-items:flex-end}
+.align button:hover{border-color:var(--teal); background:var(--ground)}
+.align button:hover::after{background:var(--teal)}
+.align button:focus-visible{outline:none; box-shadow:0 0 0 2px rgba(28,174,166,.35)}
 
 /* ---------- rows ---------- */
 .row{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:5px 0}
@@ -213,6 +214,8 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 #view{display:block}
 #cursor{position:absolute; left:0; top:0; pointer-events:none}
 #board.tool #view{cursor:none}
+#board.move #view{cursor:grab}
+#board.grabbing #view{cursor:grabbing}
 
 #status{
   min-height:24px; padding:5px 12px; font-size:10.5px; color:var(--ink-2);

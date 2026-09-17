@@ -40,7 +40,7 @@
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
       basis: 'short', previewQuality: 1200, bg: '#FFD400',
       // placement
-      fit: 'contain', fitSubject: true, imgScale: 78, imgX: 0, imgY: 0,
+      fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
       // silhouette
       maskSource: 'auto', maskThreshold: 160, maskInvert: false, maskFillHoles: true,
@@ -112,7 +112,7 @@
         {
           id: 'silhouette', items: [
             { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
-            { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource !== 'alpha' },
+            { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource === 'dark' || s.maskSource === 'light' },
             { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true, hint: true },
             { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true },
             { k: 'maskFillHoles', t: 'check' },
@@ -208,6 +208,7 @@
   let srcLabel = null;   // null = the bundled example, else the uploaded file's name
   let TOOL = 'pan';      // pan | paint
   let drawing = null;
+  let dragImage = null;   // click-drag on the artboard moves the picture
 
   const $ = sel => document.querySelector(sel);
   const view = $('#view');
@@ -350,11 +351,12 @@
       it._render = () => renderPalette(input);
     } else if (it.t === 'align') {
       input = U.el('div', 'align');
-      row.classList.add('col');
       for (let vy = 0; vy < 3; vy++) {
         for (let hx = 0; hx < 3; hx++) {
           const b = U.el('button');
           b.type = 'button';
+          b.dataset.h = hx;
+          b.dataset.v = vy;
           b.title = ['left', 'centre', 'right'][hx] + ' / ' + ['top', 'middle', 'bottom'][vy];
           b.onclick = () => alignImage(hx / 2, vy / 2);
           input.appendChild(b);
@@ -364,7 +366,9 @@
     }
 
     if (it.hint) {
-      row.classList.add('col');
+      // the alignment grid keeps the normal label-left / control-right row; a hint
+      // below it spans the full width on its own
+      if (it.t !== 'align') row.classList.add('col');
       row.appendChild(U.el('div', 'hint2', t('h.' + it.k)));
     }
     it._row = row;
@@ -604,6 +608,7 @@
     TOOL = name;
     const board = $('#board');
     board.classList.toggle('tool', name === 'paint');
+    board.classList.toggle('move', name !== 'paint');
     if (name !== 'paint') clearCursor();
     status(name === 'paint' ? t('ui.hintPaint') : '');
     applyStaticText();
@@ -636,8 +641,66 @@
     x.stroke();
   }
 
+  /* Drag the picture around, wheel to zoom. This is the default behaviour of the
+     artboard; the drawing tool takes over only while it is switched on. */
+  function beginDrag(e) {
+    if (!IMG) return;
+    dragImage = {
+      id: e.pointerId,
+      x: e.clientX, y: e.clientY,
+      imgX: S.imgX, imgY: S.imgY,
+      scale: viewScale()
+    };
+    view.setPointerCapture(e.pointerId);
+    $('#board').classList.add('grabbing');
+  }
+
+  /* canvas pixels per CSS pixel, so a drag tracks the pointer exactly */
+  function viewScale() {
+    const r = view.getBoundingClientRect();
+    return view.width / (r.width || 1);
+  }
+
+  function moveDrag(e) {
+    if (!dragImage) return;
+    const c = Engine.canvasPx(S);
+    const unit = Engine.computeUnit(S.basis, c.W, c.H);
+    const k = c.W / view.width;       // preview pixels -> canvas pixels
+    const dx = (e.clientX - dragImage.x) * dragImage.scale * k;
+    const dy = (e.clientY - dragImage.y) * dragImage.scale * k;
+    S.imgX = U.clamp(dragImage.imgX + dx / unit * 100, -150, 150);
+    S.imgY = U.clamp(dragImage.imgY + dy / unit * 100, -150, 150);
+    scheduleRender();
+  }
+
+  function endDrag(e) {
+    if (!dragImage) return;
+    dragImage = null;
+    try { view.releasePointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    $('#board').classList.remove('grabbing');
+    refresh(); save();
+  }
+
+  /* zoom about the pointer: the bit of picture under the cursor stays put */
+  function wheelZoom(e) {
+    if (!IMG || TOOL === 'paint') return;
+    e.preventDefault();
+    const q = pointerPos(e);
+    const before = Engine.canvasToSource(IMG, S, view.width, view.height, q.x, q.y);
+    if (!before) return;
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    S.imgScale = U.clamp(S.imgScale * factor, 5, 300);
+    const after = Engine.sourceToCanvas(IMG, S, view.width, view.height, before.x, before.y);
+    const unit = Engine.computeUnit(S.basis, view.width, view.height);
+    S.imgX = U.clamp(S.imgX + (q.x - after.x) / unit * 100, -150, 150);
+    S.imgY = U.clamp(S.imgY + (q.y - after.y) / unit * 100, -150, 150);
+    scheduleRender();
+    clearTimeout(wheelZoom._t);
+    wheelZoom._t = setTimeout(() => { refresh(); save(); }, 200);
+  }
+
   function beginStroke(e) {
-    if (TOOL !== 'paint') return;
+    if (TOOL !== 'paint') { beginDrag(e); return; }
     const q = pointerPos(e);
     view.setPointerCapture(e.pointerId);
     drawing = {
@@ -650,6 +713,7 @@
 
   function extendStroke(e) {
     drawCursor(e);
+    if (dragImage) { moveDrag(e); return; }
     if (!drawing) return;
     const q = pointerPos(e);
     const nx = q.x / view.width, ny = q.y / view.height;
@@ -660,6 +724,7 @@
   }
 
   function endStroke(e) {
+    if (dragImage) { endDrag(e); return; }
     if (!drawing) return;
     drawing = null;
     try { view.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
@@ -671,6 +736,7 @@
     view.addEventListener('pointermove', extendStroke);
     view.addEventListener('pointerup', endStroke);
     view.addEventListener('pointercancel', endStroke);
+    view.addEventListener('wheel', wheelZoom, { passive: false });
     view.addEventListener('pointerleave', () => { if (!drawing) clearCursor(); });
 
     window.addEventListener('keydown', e => {
@@ -766,6 +832,7 @@
     });
 
     bindTools();
+    $('#board').classList.add('move');
 
     $('#exportPng').onclick = exportPNG;
     $('#exportSvg').onclick = exportSVG;

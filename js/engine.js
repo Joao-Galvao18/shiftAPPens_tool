@@ -145,6 +145,15 @@
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
 
+  /* point in the source image (normalised) -> canvas coords */
+  function sourceToCanvas(img, S, W, H, nx, ny) {
+    if (!img) return null;
+    const m = placementMatrix(img, W, H, S, computeUnit(S.basis, W, H));
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const q = m.transformPoint(new DOMPoint(nx * iw, ny * ih));
+    return { x: q.x, y: q.y };
+  }
+
   /* how many canvas pixels one source pixel covers, so the UI can show the
      background brush at its true size on the artboard */
   function sourceScale(img, S, W, H) {
@@ -176,7 +185,7 @@
     const n = W * H;
     const m = new Float32Array(n);
     let src = S.maskSource;
-    if (src === 'auto') src = hasAlpha(img) ? 'alpha' : 'dark';
+    if (src === 'auto') src = 'alpha';
     const thr = S.maskThreshold;
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const a = data[p + 3];
@@ -631,6 +640,7 @@
     computeUnit: computeUnit,
     ringBands: ringBands,
     canvasToSource: canvasToSource,
+    sourceToCanvas: sourceToCanvas,
     sourceScale: sourceScale,
     subjectRect: subjectRect,
     preparedSource: preparedSource,
