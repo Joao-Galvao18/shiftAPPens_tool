@@ -27,6 +27,33 @@
     'sunset': { bg: '#2B1055', rings: ['#FF6B6B', '#FFD93D', '#6BCB77'], ink: '#FFFFFF' }
   };
 
+  /* Everything the Strokes tab owns, plus the background the palette was picked
+     against — without it a saved look lands on the wrong ground. */
+  const STROKE_KEYS = [
+    'bg',
+    'ringCount', 'strokeW', 'ringGap', 'ringOffset', 'ringGrowth', 'innerRings',
+    'ringColors', 'gapUseBg', 'gapColor', 'haloUseBg', 'haloColor',
+    'fillUseBg', 'fillColor', 'aa',
+    'maskSource', 'maskThreshold', 'maskSmooth', 'maskExpand', 'maskFillHoles', 'maskInvert'
+  ];
+
+  function strokeSettings() {
+    const o = {};
+    STROKE_KEYS.forEach(k => { o[k] = Array.isArray(S[k]) ? S[k].slice() : S[k]; });
+    return o;
+  }
+
+  function applyStrokeSettings(o) {
+    STROKE_KEYS.forEach(k => {
+      if (o[k] === undefined) return;
+      S[k] = Array.isArray(o[k]) ? o[k].slice() : o[k];
+    });
+    Engine.clearCache();
+    buildUI();
+    scheduleRender();
+    save();
+  }
+
   const EXAMPLE_SRC = [
     'assets/example.png', 'assets/example.jpg', 'assets/example.jpeg',
     'assets/example.webp', 'assets/example.avif'
@@ -185,6 +212,15 @@
       ]
     },
     {
+      id: 'presets', groups: [
+        {
+          id: 'saved', items: [
+            { k: 'presetList', t: 'presets' }
+          ]
+        }
+      ]
+    },
+    {
       id: 'draw', groups: [
         {
           id: 'brush', items: [
@@ -222,13 +258,15 @@
   const vctx = view.getContext('2d');
 
   /* ---------------- UI builder ---------------- */
+  let canvasCount = 0;   // controls owned by the always-visible canvas block
+
   function buildUI() {
     controls = [];
     buildCanvasBlock();
+    canvasCount = controls.length;
     buildTabStrip();
     buildTabBody();
     applyStaticText();
-    refresh();
   }
 
   function buildCanvasBlock() {
@@ -251,6 +289,9 @@
 
   function buildTabBody() {
     const root = $('#panels');
+    // drop the previous tab's controls rather than piling more on top
+    controls.length = canvasCount;
+    const typed = $('#presetName') ? $('#presetName').value : null;
     root.innerHTML = '';
     const tab = TABS.find(x => x.id === S.tab) || TABS[0];
     tab.groups.forEach(group => {
@@ -259,6 +300,8 @@
       group.items.forEach(item => sec.appendChild(buildControl(item)));
       root.appendChild(sec);
     });
+    refresh();
+    if (typed && $('#presetName')) $('#presetName').value = typed;
   }
 
   function applyStaticText() {
@@ -355,6 +398,11 @@
       row.classList.add('col');
       row.appendChild(input);
       it._render = () => renderPalette(input);
+    } else if (it.t === 'presets') {
+      input = U.el('div', 'presets');
+      row.classList.add('col');
+      row.appendChild(input);
+      it._render = () => renderPresets(input);
     } else if (it.t === 'align') {
       input = U.el('div', 'align');
       for (let vy = 0; vy < 3; vy++) {
@@ -412,6 +460,112 @@
       scheduleRender(); save();
     };
     box.appendChild(add);
+  }
+
+  function renderPresets(box) {
+    box.innerHTML = '';
+
+    // save row
+    const bar = U.el('div', 'preset-new');
+    const name = U.el('input', 'numbox');
+    name.type = 'text';
+    name.id = 'presetName';
+    name.placeholder = t('ui.presetName');
+    name.maxLength = 60;
+    const add = U.el('button', 'btn small');
+    add.type = 'button';
+    add.textContent = t('ui.presetSave');
+    const commit = async () => {
+      const n = name.value.trim();
+      if (!n) { name.focus(); return; }
+      add.disabled = true;
+      try {
+        await Presets.save(n, strokeSettings());
+        name.value = '';
+        status(t('ui.presetSaved', n));
+      } catch (e) {
+        status(t('ui.presetFail'), true);
+      }
+      add.disabled = false;
+    };
+    add.onclick = commit;
+    name.onkeydown = e => { if (e.key === 'Enter') commit(); };
+    bar.appendChild(name);
+    bar.appendChild(add);
+    if (Presets.canWrite) box.appendChild(bar);
+
+    // where these live
+    const note = U.el('div', 'hint2');
+    note.textContent = Presets.mode === 'shared' ? t('ui.presetShared')
+      : Presets.mode === 'local' ? t('ui.presetLocal') : t('ui.presetLoading');
+    box.appendChild(note);
+
+    const list = U.el('div', 'preset-list');
+    box.appendChild(list);
+
+    const items = Presets.items;
+    if (!items.length) {
+      list.appendChild(U.el('div', 'hint2', t('ui.presetEmpty')));
+      return;
+    }
+
+    const rows = [];
+    items.forEach(pr => {
+      const row = U.el('div', 'preset');
+
+      const sw = U.el('div', 'preset-sw');
+      const cols = [pr.settings && pr.settings.bg].concat((pr.settings && pr.settings.ringColors) || []);
+      cols.filter(Boolean).slice(0, 5).forEach(c => {
+        const d = U.el('i');
+        d.style.background = c;
+        sw.appendChild(d);
+      });
+
+      const meta = U.el('div', 'preset-meta');
+      const nm = U.el('div', 'preset-name');
+      nm.textContent = pr.name || 'Untitled';
+      const by = U.el('div', 'preset-by');
+      by.textContent = ' ';
+      meta.appendChild(nm);
+      meta.appendChild(by);
+
+      const use = U.el('button', 'btn small');
+      use.type = 'button';
+      use.textContent = t('ui.presetApply');
+      use.onclick = () => { applyStrokeSettings(pr.settings || {}); status(t('ui.presetApplied', pr.name || '')); };
+
+      row.appendChild(sw);
+      row.appendChild(meta);
+      row.appendChild(use);
+
+      const mine = Presets.mode === 'local' || (pr.by && pr.by === Presets.uid);
+      if (mine) {
+        const del = U.el('button', 'btn small danger');
+        del.type = 'button';
+        del.textContent = '\u00d7';
+        del.title = t('ui.presetDelete');
+        del.onclick = async () => {
+          if (!confirm(t('ui.presetConfirm', pr.name || ''))) return;
+          try { await Presets.remove(pr.id); } catch (e) { status(t('ui.presetFail'), true); }
+        };
+        row.appendChild(del);
+      }
+
+      list.appendChild(row);
+      rows.push({ by: pr.by, el: by });
+    });
+
+    // names resolve per viewer, so ask on every render rather than storing them
+    const ids = [...new Set(rows.map(r => r.by).filter(Boolean))];
+    if (ids.length) {
+      Presets.names(ids).then(ps => {
+        rows.forEach(r => {
+          if (!r.by) return;
+          const prof = ps[r.by];
+          r.el.textContent = prof && prof.name ? prof.name : t('ui.someone');
+        });
+      });
+    }
   }
 
   /* Move the image so the subject itself sits against the chosen edge. An earlier
@@ -475,6 +629,7 @@
         it._val.innerHTML = s;
       } else if (it.t === 'check') it._input.checked = !!v;
       else if (it.t === 'palette') it._render();
+      else if (it.t === 'presets') it._render();
       else if (it._input && it._input.tagName) it._input.value = v;
     });
   }
@@ -1027,6 +1182,11 @@
       defaults: defaults,
       setLang: setLang
     };
+
+    Presets.onChange(() => {
+      if (S.tab === 'presets') buildTabBody();
+    });
+    Presets.init();
 
     exampleImage();
   }

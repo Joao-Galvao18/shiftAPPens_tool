@@ -5,16 +5,16 @@
   'use strict';
 
   const en = {
-    tab: { strokes: 'Strokes', image: 'Image', draw: 'Drawing' },
+    tab: { strokes: 'Strokes', image: 'Image', presets: 'Presets', draw: 'Drawing' },
     g: {
       canvas: 'Canvas', shape: 'Shape', colours: 'Colours', silhouette: 'Silhouette',
       placement: 'Placement', bg: 'Background', treat: 'Treatment', grain: 'Grain',
-      brush: 'Brush'
+      brush: 'Brush', saved: 'Saved looks'
     },
     l: {
       sizePreset: 'Format', units: 'Units', cw: 'Width', ch: 'Height', dpi: 'DPI',
       basis: 'Scale strokes to', bg: 'Background', previewQuality: 'Preview quality',
-      reset: 'Reset all', align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
+      reset: 'Reset all', presetList: 'Saved looks', align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
       drawToggle: 'Start drawing', drawToggleOn: 'Stop drawing',
       undoDraw: 'Undo last stroke', clearDraw: 'Clear drawing', imgX: 'Offset X', imgY: 'Offset Y', rotate: 'Rotate',
       flipH: 'Flip horizontal', flipV: 'Flip vertical',
@@ -102,21 +102,34 @@
       svgFail: 'SVG export failed: ',
       heavy: (mp) => 'Heads up: export is ' + mp + ' megapixels — it may take a while.',
       cleared: 'Cleared.',
+      presetName: 'Name this look',
+      presetSave: 'Save',
+      presetApply: 'Use',
+      presetDelete: 'Delete',
+      presetEmpty: 'Nothing saved yet. Set up your strokes, name the look, and save it.',
+      presetShared: 'Saved looks are shared — everyone on your team sees these.',
+      presetLocal: 'Saved on this device only. Open the published link to share them with your team.',
+      presetLoading: 'Looking for your team\u2019s saved looks\u2026',
+      presetSaved: (n) => 'Saved \u201c' + n + '\u201d',
+      presetApplied: (n) => 'Using \u201c' + n + '\u201d',
+      presetConfirm: (n) => 'Delete \u201c' + n + '\u201d for everyone?',
+      presetFail: 'That did not save. Try again.',
+      someone: 'Someone',
       hintPaint: 'Drag on the artboard to draw.'
     }
   };
 
   const pt = {
-    tab: { strokes: 'Contornos', image: 'Imagem', draw: 'Desenho' },
+    tab: { strokes: 'Contornos', image: 'Imagem', presets: 'Predefinições', draw: 'Desenho' },
     g: {
       canvas: 'Tela', shape: 'Forma', colours: 'Cores', silhouette: 'Silhueta',
       placement: 'Posicionamento', bg: 'Fundo', treat: 'Tratamento', grain: 'Grão',
-      brush: 'Pincel'
+      brush: 'Pincel', saved: 'Estilos guardados'
     },
     l: {
       sizePreset: 'Formato', units: 'Unidades', cw: 'Largura', ch: 'Altura', dpi: 'DPI',
       basis: 'Escalar contornos a', bg: 'Fundo', previewQuality: 'Qualidade da pré-visualização',
-      reset: 'Repor tudo', align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
+      reset: 'Repor tudo', presetList: 'Estilos guardados', align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
       drawToggle: 'Começar a desenhar', drawToggleOn: 'Parar de desenhar',
       undoDraw: 'Anular último traço', clearDraw: 'Limpar desenho', imgX: 'Deslocamento X', imgY: 'Deslocamento Y', rotate: 'Rodar',
       flipH: 'Espelhar na horizontal', flipV: 'Espelhar na vertical',
@@ -204,6 +217,19 @@
       svgFail: 'Falha ao exportar SVG: ',
       heavy: (mp) => 'Atenção: a exportação tem ' + mp + ' megapíxeis — pode demorar.',
       cleared: 'Limpo.',
+      presetName: 'D\u00ea um nome a este estilo',
+      presetSave: 'Guardar',
+      presetApply: 'Usar',
+      presetDelete: 'Eliminar',
+      presetEmpty: 'Ainda n\u00e3o h\u00e1 nada guardado. Defina os contornos, d\u00ea um nome ao estilo e guarde-o.',
+      presetShared: 'Os estilos guardados s\u00e3o partilhados \u2014 toda a equipa v\u00ea estes.',
+      presetLocal: 'Guardado apenas neste dispositivo. Abra o link publicado para os partilhar com a equipa.',
+      presetLoading: 'A procurar os estilos guardados da equipa\u2026',
+      presetSaved: (n) => 'Guardado \u201c' + n + '\u201d',
+      presetApplied: (n) => 'A usar \u201c' + n + '\u201d',
+      presetConfirm: (n) => 'Eliminar \u201c' + n + '\u201d para toda a gente?',
+      presetFail: 'N\u00e3o foi poss\u00edvel guardar. Tente de novo.',
+      someone: 'Algu\u00e9m',
       hintPaint: 'Arraste sobre a prancha para desenhar.'
     }
   };

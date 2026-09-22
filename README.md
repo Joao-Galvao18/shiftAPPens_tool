@@ -100,6 +100,15 @@ removed / 85% of subject kept, gradient 99% / 99.6%, two-tone 99% / 80%, busy
 texture 58% / 100% — it refuses rather than eating the subject when the backdrop
 is too noisy to key.
 
+**Presets** — save the current stroke look under a name and use it again. On the
+published link these live in the artifact's shared database, so everyone on the
+team sees everyone's; opened as a local file there is no such store and they fall
+back to this browser's localStorage, which the panel says plainly rather than
+pretending they are shared. A preset carries the whole Strokes tab plus the
+background colour the palette was chosen against. Only the author's id is stored,
+never their name — names differ per viewer and go stale, so they are resolved at
+render time.
+
 **Drawing** — eight brushes (marker, pen, scribble, calligraphy, chalk, spray,
 dashed, highlighter), any colour, on a layer above the artwork, in its own tab.
 Chalk and spray stamp a deterministic grain, calligraphy varies its width with
@@ -193,6 +202,7 @@ js/util.js       helpers
 js/i18n.js       English / Portuguese strings
 js/bg.js         background removal
 js/paint.js      the drawing layer
+js/presets.js    shared saved looks (artifact db, localStorage fallback)
 js/edt.js        distance transform, blur, hole fill
 js/contour.js    marching squares, simplification, SVG paths
 js/engine.js     placement, mask, rings, image FX, export

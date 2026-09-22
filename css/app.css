@@ -88,6 +88,29 @@ body{
 .btn.active{background:var(--pink); border-color:var(--pink); color:#fff}
 .btn.active:hover{background:var(--pink); filter:brightness(.95)}
 
+/* ---------- presets ---------- */
+.presets{display:flex; flex-direction:column; gap:7px; margin-top:4px}
+.preset-new{display:flex; gap:5px}
+.preset-new input{flex:1; font-family:var(--sans); font-size:11.5px}
+.preset-list{display:flex; flex-direction:column; gap:4px; margin-top:2px}
+.preset{
+  display:flex; align-items:center; gap:7px; padding:5px 6px;
+  border:1px solid var(--line); border-radius:5px; background:var(--paper);
+}
+.preset:hover{border-color:var(--line-2); background:var(--ground)}
+.preset-sw{display:flex; flex:none; border-radius:3px; overflow:hidden; border:1px solid var(--line)}
+.preset-sw i{width:9px; height:20px; display:block}
+.preset-meta{flex:1; min-width:0}
+.preset-name{
+  font-size:11.5px; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.preset-by{
+  font-size:9.5px; color:var(--ink-3); min-height:12px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.preset .btn{flex:none; padding:4px 8px; font-size:10.5px}
+
 /* ---------- alignment grid ---------- */
 .align{display:grid; grid-template-columns:repeat(3,19px); grid-auto-rows:19px; gap:3px}
 .align button{
