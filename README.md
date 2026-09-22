@@ -109,6 +109,17 @@ background colour the palette was chosen against. Only the author's id is stored
 never their name — names differ per viewer and go stale, so they are resolved at
 render time.
 
+Each person's list is one document, `presets/<their id>`, and the published rules
+
+    { path: "presets",        read: "view",  write: "admin" }
+    { path: "presets/{self}", write: "interact" }
+
+mean everyone reads every list while nobody can write anyone else's — ownership
+enforced by the store rather than merely hidden in the interface. It stays one
+subscription over one collection, because those per-person documents sit directly
+in `presets`; nesting each person's presets in a subcollection is what would force
+a roster document and a subscription per person.
+
 **Drawing** — eight brushes (marker, pen, scribble, calligraphy, chalk, spray,
 dashed, highlighter), any colour, on a layer above the artwork, in its own tab.
 Chalk and spray stamp a deterministic grain, calligraphy varies its width with
