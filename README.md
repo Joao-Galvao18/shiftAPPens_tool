@@ -100,7 +100,14 @@ removed / 85% of subject kept, gradient 99% / 99.6%, two-tone 99% / 80%, busy
 texture 58% / 100% — it refuses rather than eating the subject when the backdrop
 is too noisy to key.
 
-**Presets** — save the current stroke look under a name and use it again. On the
+**Presets** — save the current stroke look under a name and use it again. One
+preset, **ShiftAPPens**, is built into `js/presets.js` and ships with the code, so
+every copy has it however the tool is hosted; it is not deletable and belongs to
+nobody. Edit the `BUILTIN` array to change it or add more.
+
+Saved presets are only shared on the claude.ai artifact link. On a static host
+(GitHub Pages, a local file) there is no shared store, so what a person saves
+stays in their own browser — the panel says so. On the
 published link these live in the artifact's shared database, so everyone on the
 team sees everyone's; opened as a local file there is no such store and they fall
 back to this browser's localStorage, which the panel says plainly rather than

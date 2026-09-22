@@ -538,7 +538,8 @@
       row.appendChild(meta);
       row.appendChild(use);
 
-      const mine = Presets.mode === 'local' || (pr.by && pr.by === Presets.uid);
+      const mine = !pr.builtin &&
+        (Presets.mode === 'local' || (pr.by && pr.by === Presets.uid));
       if (mine) {
         const del = U.el('button', 'btn small danger');
         del.type = 'button';
@@ -551,8 +552,9 @@
         row.appendChild(del);
       }
 
+      if (pr.builtin) by.textContent = t('ui.presetBuiltin');
       list.appendChild(row);
-      rows.push({ by: pr.by, el: by });
+      if (!pr.builtin) rows.push({ by: pr.by, el: by });
     });
 
     // names resolve per viewer, so ask on every render rather than storing them

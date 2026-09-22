@@ -26,6 +26,35 @@
 (function (g) {
   'use strict';
 
+  /* Shipped with the tool, so it is there for everyone on every copy — the
+     GitHub Pages build included, where there is no shared store at all. Not
+     deletable and not owned by anyone. */
+  const BUILTIN = [
+    {
+      id: 'builtin-shiftappens',
+      name: 'ShiftAPPens',
+      builtin: true,
+      by: null,
+      at: '',
+      settings: {
+        bg: '#F4492E',
+        ringCount: 5,
+        strokeW: 2,
+        ringGap: 0,
+        ringOffset: 0,
+        ringGrowth: 1,
+        innerRings: 0,
+        ringColors: ['#FFFFFF', '#1CAEA6', '#FBDF00', '#1CAEA6', '#FBDF00'],
+        gapUseBg: true, gapColor: '#ffffff',
+        haloUseBg: true, haloColor: '#ffffff',
+        fillUseBg: true, fillColor: '#ffffff',
+        aa: true,
+        maskSource: 'auto', maskThreshold: 160, maskSmooth: 0.8,
+        maskExpand: 0, maskFillHoles: true, maskInvert: false
+      }
+    }
+  ];
+
   const COLLECTION = 'presets';
   const LOCAL_KEY = 'offset.presets';
   const MAX_PER_PERSON = 60;
@@ -55,7 +84,7 @@
 
   function goLocal() {
     P.mode = 'local';
-    P.items = readLocal();
+    P.items = BUILTIN.concat(readLocal());
     emit();
   }
 
@@ -96,7 +125,7 @@
           if (d.id === P.uid) P._mine = items.slice();
         });
         all.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
-        P.items = all;
+        P.items = BUILTIN.concat(all);
         emit();
       },
       () => { /* terminal: keep whatever we last showed */ }
@@ -122,11 +151,12 @@
 
     const list = [row].concat(readLocal()).slice(0, MAX_PER_PERSON);
     writeLocal(list);
-    P.items = list;
+    P.items = BUILTIN.concat(list);
     emit();
   }
 
   async function remove(id) {
+    if (BUILTIN.some(b => b.id === id)) return;    // shipped: not anyone's to delete
     if (P.mode === 'shared') {
       if (!P.uid) return;
       const next = P._mine.filter(it => it && it.id !== id);
@@ -136,7 +166,7 @@
     }
     const list = readLocal().filter(p => p.id !== id);
     writeLocal(list);
-    P.items = list;
+    P.items = BUILTIN.concat(list);
     emit();
   }
 

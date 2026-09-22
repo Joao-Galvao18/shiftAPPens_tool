@@ -115,6 +115,7 @@
       presetConfirm: (n) => 'Delete \u201c' + n + '\u201d for everyone?',
       presetFail: 'That did not save. Try again.',
       someone: 'Someone',
+      presetBuiltin: 'Built in',
       hintPaint: 'Drag on the artboard to draw.'
     }
   };
@@ -230,6 +231,7 @@
       presetConfirm: (n) => 'Eliminar \u201c' + n + '\u201d para toda a gente?',
       presetFail: 'N\u00e3o foi poss\u00edvel guardar. Tente de novo.',
       someone: 'Algu\u00e9m',
+      presetBuiltin: 'Inclu\u00eddo',
       hintPaint: 'Arraste sobre a prancha para desenhar.'
     }
   };
