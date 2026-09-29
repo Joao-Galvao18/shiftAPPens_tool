@@ -98,6 +98,8 @@
       exportScale: "PNG size",
       svgRes: "SVG detail",
       svgSimplify: "SVG smoothing",
+      halftoneAngle: "Screen angle",
+      halftoneShape: "Dot shape",
       presetList: "Saved looks"
     },
     h: {
@@ -154,6 +156,7 @@
       igpost: 'IG post', a4: 'A4 @300', banner: '3m banner @50dpi'
     },
     ui: {
+      canvas: 'Canvas',
       upload: 'Upload image',
       drop: 'or drop a file here, or paste with Ctrl + V',
       dropOver: 'Drop image',
@@ -288,6 +291,8 @@
       exportScale: "Tamanho do PNG",
       svgRes: "Detalhe do SVG",
       svgSimplify: "Suaviza\u00e7\u00e3o do SVG",
+      halftoneAngle: "Ângulo da trama",
+      halftoneShape: "Forma do ponto",
       presetList: "Estilos guardados"
     },
     h: {
@@ -344,6 +349,7 @@
       igpost: 'Publicação IG', a4: 'A4 @300', banner: 'Lona 3m @50dpi'
     },
     ui: {
+      canvas: 'Tela',
       upload: 'Carregar imagem',
       drop: 'ou arraste um ficheiro para aqui, ou cole com Ctrl + V',
       dropOver: 'Largue a imagem',

@@ -199,10 +199,19 @@ controls, since their only job is to shape the strokes.
 
 **Drawing** — brush type, colour, nib width, undo and clear.
 
-An upload arrives untouched: the canvas takes the picture's own pixel size and
-places it 1:1, so it exports exactly as sharp as the file rather than being
-resampled into a preset (verified pixel-identical). No cropping to the cut-out,
-no processing. Background removal, clipping and treatment are things
+An upload arrives untouched: the canvas takes the picture's pixel size PLUS a
+margin, and the picture is placed at exactly 1:1, so it exports as sharp as the
+file rather than being resampled into a preset (verified pixel-identical). No
+cropping to the cut-out, no processing.
+
+The margin matters. Matching the picture's size exactly leaves the silhouette
+filling the whole frame, so every stroke lands outside the canvas and the tool
+appears to do nothing at all — the strokes need somewhere to go. The margin is
+18% of the picture's short side, at least 64px, and `contain`'s scale-up is
+cancelled so the placement still comes out at 1:1.
+
+The Canvas panel folds away when the sidebar is tight; it keeps showing the size
+while closed, and remembers the choice. Background removal, clipping and treatment are things
 you turn on afterwards.
 
 Click the picture to pick it up — that shows its frame and four corner handles.

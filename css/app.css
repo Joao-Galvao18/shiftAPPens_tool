@@ -71,6 +71,29 @@ body{
   display:flex; flex-direction:column;
 }
 
+.cardHead{
+  display:flex; align-items:center; gap:8px; width:100%; padding:0 0 2px;
+  background:none; border:0; cursor:pointer; color:var(--ink);
+  font:500 12.5px/1 var(--sans); text-align:left;
+}
+.cardHead em{
+  margin-left:auto; font-style:normal; font-family:var(--mono);
+  font-size:10px; color:var(--ink-3);
+}
+.cardHead .chev{
+  width:0; height:0; flex:none; border-left:5px solid var(--ink-3);
+  border-top:4px solid transparent; border-bottom:4px solid transparent;
+  transform:rotate(90deg); transition:transform .15s;
+}
+.cardHead:hover .chev{border-left-color:var(--teal)}
+.cardHead:focus-visible{outline:2px solid var(--teal); outline-offset:3px; border-radius:4px}
+.canvasBlock.closed .chev{transform:rotate(0)}
+.canvasBlock.closed #canvasBlock{display:none}
+.canvasBlock.closed{padding-bottom:11px}
+.canvasBlock:not(.closed) .cardHead{
+  margin-bottom:8px; padding-bottom:9px; border-bottom:1px solid var(--line);
+}
+
 /* ---------- tabs ---------- */
 .tabs{
   display:flex; gap:2px; margin:0 14px 12px; padding:3px;

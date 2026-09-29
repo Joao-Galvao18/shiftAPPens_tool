@@ -62,7 +62,7 @@
   /* ---------------- defaults ---------------- */
   function defaults() {
     return {
-      lang: 'en', tab: 'strokes',
+      lang: 'en', tab: 'strokes', canvasOpen: true,
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
       basis: 'short', previewQuality: 1200, bg: '#FFD400',
@@ -314,6 +314,11 @@
     const root = $('#canvasBlock');
     root.innerHTML = '';
     CANVAS_ITEMS.forEach(it => root.appendChild(buildControl(it)));
+    const card = $('#canvasCard');
+    card.classList.toggle('closed', !S.canvasOpen);
+    $('#canvasTitle').textContent = t('ui.canvas');
+    const c = Engine.canvasPx(S);
+    $('#canvasSummary').textContent = c.W + ' \u00d7 ' + c.H;
   }
 
   function buildTabStrip() {
@@ -784,12 +789,7 @@
       im.onload = () => {
         IMG = im;
         resetImageSettings();
-        // the canvas takes the picture's own size, so it is placed 1:1 and
-        // exports at full quality instead of being resampled into a preset
-        S.units = 'px';
-        S.cw = im.naturalWidth;
-        S.ch = im.naturalHeight;
-        S.sizePreset = 'custom';
+        fitCanvasToPicture(im);
         selected = false;
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
@@ -801,6 +801,30 @@
       im.src = fr.result;
     };
     fr.readAsDataURL(file);
+  }
+
+  /* The canvas takes the picture's pixel size PLUS room around it, and the
+     picture is placed at exactly 1:1 so it stays as sharp as the file.
+
+     Matching the picture's size exactly — which is what this did at first —
+     leaves the silhouette filling the whole frame, so every stroke lands outside
+     the canvas and the tool appears to do nothing at all. The strokes need
+     somewhere to go. */
+  function fitCanvasToPicture(im) {
+    const iw = im.naturalWidth, ih = im.naturalHeight;
+    const margin = Math.max(64, Math.round(Math.min(iw, ih) * 0.18));
+    S.units = 'px';
+    S.cw = iw + margin * 2;
+    S.ch = ih + margin * 2;
+    S.sizePreset = 'custom';
+    S.fit = 'contain';
+    S.fitSubject = false;
+    // contain would scale the picture up to fill the larger canvas; cancel that
+    // exactly, so the placement matrix comes out at 1:1 and the pixels are kept
+    const base = Math.min(S.cw / iw, S.ch / ih);
+    S.imgScale = U.clamp(100 / base, 5, 300);
+    S.imgX = 0;
+    S.imgY = 0;
   }
 
   function exampleImage(i) {
@@ -1310,6 +1334,12 @@
     load();
     I18N.setLang(S.lang);
     buildUI();
+
+    $('#canvasToggle').onclick = () => {
+      S.canvasOpen = !S.canvasOpen;
+      $('#canvasCard').classList.toggle('closed', !S.canvasOpen);
+      save();
+    };
 
     $('#pick').onclick = () => $('#file').click();
     $('#file').onchange = e => loadFile(e.target.files[0]);
