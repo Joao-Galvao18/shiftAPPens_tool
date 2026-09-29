@@ -127,9 +127,12 @@ subscription over one collection, because those per-person documents sit directl
 in `presets`; nesting each person's presets in a subcollection is what would force
 a roster document and a subscription per person.
 
-**Animate** — five movements of the strokes: *radiate* (bands travelling out or
+**Animate** — six movements of the strokes: *radiate* (bands travelling out or
 in), *breathe* (weight swelling), *chase* (the palette marching round), *reveal*
-(strokes growing and retracting) and *wobble* (the silhouette pulsing). Each is a
+(strokes growing and retracting), *wobble* (the silhouette pulsing) and *hue
+shift* (the palette travelling round the colour wheel). Moving grain redraws the
+speckle every frame for a film-grain shimmer; it rides on top of the finished
+frame, so animating it is free. Each is a
 function of loop time and returns to its first frame, so the loop is seamless by
 construction rather than by trimming — radiate travels a whole colour cycle, not
 one band, so the palette lands back where it started too.
@@ -138,6 +141,11 @@ Every movement touches only the ring compositing. The distance field and the
 treated artwork are identical in each frame and the engine caches both, so a
 frame costs about 50ms at 700px instead of the ~1s a cold render takes. Playback
 is capped at 700px for that reason; exports render at the real size.
+
+Everything runs at 60fps — at 30 a travelling band visibly steps, and no frame is
+expensive enough to need less. GIF is the exception: its delays are whole
+hundredths of a second, so 50fps (delay 2) is the fastest it can honestly hold,
+and the export button shows the real rate.
 
 Export as GIF, WebM or a numbered PNG per frame, at 0.5x, 1x or 2x. The GIF
 encoder is in `js/gif.js` — median-cut quantisation over a 15-bit histogram with
@@ -177,8 +185,10 @@ controls, since their only job is to shape the strokes.
 
 **Drawing** — brush type, colour, nib width, undo and clear.
 
-An upload arrives untouched: the whole picture, at 100%, with no cropping to the
-cut-out and no processing. Background removal, clipping and treatment are things
+An upload arrives untouched: the canvas takes the picture's own pixel size and
+places it 1:1, so it exports exactly as sharp as the file rather than being
+resampled into a preset (verified pixel-identical). No cropping to the cut-out,
+no processing. Background removal, clipping and treatment are things
 you turn on afterwards.
 
 Click the picture to pick it up — that shows its frame and four corner handles.

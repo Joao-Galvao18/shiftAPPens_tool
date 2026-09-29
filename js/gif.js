@@ -26,21 +26,24 @@
   Buf.prototype.out = function () { return this.a.subarray(0, this.n); };
 
   /* ---------- palette: median cut over a 15-bit histogram ---------- */
-  function histogram(frames, step) {
-    const count = new Uint32Array(32768);
-    const sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
-    for (const d of frames) {
-      for (let i = 0; i < d.length; i += 4 * step) {
-        const r = d[i], gg = d[i + 1], bb = d[i + 2];
-        const k = ((r >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3);
-        count[k]++; sr[k] += r; sg[k] += gg; sb[k] += bb;
-      }
-    }
-    return { count: count, sr: sr, sg: sg, sb: sb };
+  function newHist() {
+    return {
+      count: new Uint32Array(32768),
+      sr: new Float64Array(32768),
+      sg: new Float64Array(32768),
+      sb: new Float64Array(32768)
+    };
   }
 
-  function quantize(frames, maxColors) {
-    const h = histogram(frames, 3);
+  function accumulate(h, d, step) {
+    for (let i = 0; i < d.length; i += 4 * step) {
+      const r = d[i], gg = d[i + 1], bb = d[i + 2];
+      const k = ((r >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3);
+      h.count[k]++; h.sr[k] += r; h.sg[k] += gg; h.sb[k] += bb;
+    }
+  }
+
+  function quantize(h, maxColors) {
     const bins = [];
     for (let k = 0; k < 32768; k++) if (h.count[k]) bins.push(k);
     if (!bins.length) return [[0, 0, 0]];
@@ -152,23 +155,32 @@
     out.b(0);
   }
 
-  /* ---------- the encoder ---------- */
+  /* ---------- the encoder ----------
+     Three phases, so nothing holds every frame at once: SAMPLE a handful of
+     frames to learn the palette, BEGIN to write the header, then stream each
+     frame through addFrame. At 60fps a two second loop is 120 frames — keeping
+     their pixels around would be hundreds of megabytes. */
   function Encoder(w, h, delayCs) {
     this.w = w; this.h = h;
     this.delay = Math.max(2, delayCs | 0);
-    this.frames = [];        // raw RGBA of each frame
+    this._hist = newHist();
+    this._out = new Buf();
+    this._map = null;
+    this._bits = 0;
+    this._idx = new Uint8Array(w * h);
   }
 
-  Encoder.prototype.add = function (imageData) {
-    this.frames.push(imageData.data);
+  Encoder.prototype.sample = function (imageData) {
+    accumulate(this._hist, imageData.data, 3);
   };
 
-  Encoder.prototype.render = function () {
-    const pal = quantize(this.frames, 256);
+  Encoder.prototype.begin = function () {
+    const pal = quantize(this._hist, 256);
     const bits = Math.max(1, Math.ceil(Math.log2(Math.max(2, pal.length))));
     const size = 1 << bits;
-    const map = mapper(pal);
-    const out = new Buf();
+    this._bits = bits;
+    this._map = mapper(pal);
+    const out = this._out;
 
     out.s('GIF89a');
     out.u16(this.w); out.u16(this.h);
@@ -183,26 +195,29 @@
     out.b(0x21); out.b(0xFF); out.b(11);
     out.s('NETSCAPE2.0');
     out.b(3); out.b(1); out.u16(0); out.b(0);
+  };
 
+  Encoder.prototype.addFrame = function (imageData) {
+    const out = this._out, d = imageData.data, idx = this._idx;
     const n = this.w * this.h;
-    const idx = new Uint8Array(n);
-    for (const d of this.frames) {
-      for (let i = 0, p = 0; i < n; i++, p += 4) idx[i] = map(d[p], d[p + 1], d[p + 2]);
+    for (let i = 0, p = 0; i < n; i++, p += 4) idx[i] = this._map(d[p], d[p + 1], d[p + 2]);
 
-      out.b(0x21); out.b(0xF9); out.b(4);
-      out.b(0);                       // no transparency, disposal "unspecified"
-      out.u16(this.delay);
-      out.b(0); out.b(0);
+    out.b(0x21); out.b(0xF9); out.b(4);
+    out.b(0);                       // no transparency, disposal "unspecified"
+    out.u16(this.delay);
+    out.b(0); out.b(0);
 
-      out.b(0x2C);
-      out.u16(0); out.u16(0);
-      out.u16(this.w); out.u16(this.h);
-      out.b(0);                       // no local table, not interlaced
+    out.b(0x2C);
+    out.u16(0); out.u16(0);
+    out.u16(this.w); out.u16(this.h);
+    out.b(0);                       // no local table, not interlaced
 
-      lzw(idx, Math.max(2, bits), out);
-    }
-    out.b(0x3B);
-    return new Blob([out.out()], { type: 'image/gif' });
+    lzw(idx, Math.max(2, this._bits), out);
+  };
+
+  Encoder.prototype.finish = function () {
+    this._out.b(0x3B);
+    return new Blob([this._out.out()], { type: 'image/gif' });
   };
 
   g.GIF = { Encoder: Encoder };

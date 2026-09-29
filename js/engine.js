@@ -111,7 +111,16 @@
     x.imageSmoothingEnabled = true;
     x.imageSmoothingQuality = 'high';
     const m = placementMatrix(src, W, H, S, unit);
-    x.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    // At 1:1 with no rotation, a half-pixel translation resamples the whole
+    // picture and softens it. Snap to whole pixels so an upload placed at its
+    // own size stays exactly as sharp as the file.
+    let e = m.e, f = m.f;
+    const unrotated = Math.abs(m.b) < 1e-9 && Math.abs(m.c) < 1e-9;
+    if (unrotated && Math.abs(Math.abs(m.a) - 1) < 1e-6 && Math.abs(Math.abs(m.d) - 1) < 1e-6) {
+      e = Math.round(e); f = Math.round(f);
+      x.imageSmoothingEnabled = false;
+    }
+    x.setTransform(m.a, m.b, m.c, m.d, e, f);
     x.drawImage(src, 0, 0, iw, ih);
     x.setTransform(1, 0, 0, 1, 0, 0);
     return c;
@@ -539,6 +548,10 @@
       brushColor: 1, brushWidth: 1, brushType: 1,
       exportScale: 1, svgRes: 1, svgSimplify: 1,
     };
+    // grain is painted over the base, so the seed only changes the base when the
+    // artwork's own dither uses it - otherwise animated grain would rebuild
+    // everything on every frame
+    if (S.ditherMode !== 'noise') skip.seed = 1;
     for (const k in S) if (!skip[k]) o[k] = S[k];
     return W + 'x' + H + '|' + token + '|' + JSON.stringify(o);
   }

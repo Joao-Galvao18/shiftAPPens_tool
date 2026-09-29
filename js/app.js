@@ -93,8 +93,9 @@
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // animation
-      animType: 'radiate', animDir: 'out', animSeconds: 2, animFps: 20,
+      animType: 'radiate', animDir: 'out', animSeconds: 1.5,
       animAmount: 35, animFill: true, animScale: 1, animFormat: 'gif',
+      animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
       // misc
       seed: 7, svgSimplify: 0.5, svgRes: 1800, exportScale: 1
     };
@@ -231,14 +232,21 @@
             {
               k: 'animType', t: 'select', hint: true,
               o: [['radiate', 'an.radiate'], ['breathe', 'an.breathe'], ['chase', 'an.chase'],
-                  ['reveal', 'an.reveal'], ['wobble', 'an.wobble']]
+                  ['reveal', 'an.reveal'], ['wobble', 'an.wobble'], ['hue', 'an.hue']]
             },
-            { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' },
+            { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' || s.animType === 'hue' },
             { k: 'animFill', t: 'check', hint: true, show: s => s.animType === 'radiate' },
             { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
+            { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' },
             { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's' },
-            { k: 'animFps', t: 'select', o: [[10, 'fps.10'], [12, 'fps.12'], [15, 'fps.15'], [20, 'fps.20'], [25, 'fps.25'], [30, 'fps.30']] },
             { k: 'animScrub', t: 'range', min: 0, max: 100, step: 1, u: '%' }
+          ]
+        },
+        {
+          id: 'anmgrain', items: [
+            { k: 'animGrain', t: 'range', min: 0, max: 100, step: 1, u: '%', hint: true },
+            { k: 'animGrainScale', t: 'range', min: 0.05, max: 3, step: 0.01, u: '%', px: true, show: s => s.animGrain > 0 },
+            { k: 'animGrainMono', t: 'check', show: s => s.animGrain > 0 }
           ]
         },
         {
@@ -663,8 +671,8 @@
           it._input.classList.toggle('active', playing);
         } else if (it.k === 'animExport') {
           const n = Anim.frameCount(S);
-          const rate = S.animFormat === 'gif' ? Anim.gifRate(S.animFps) : S.animFps;
-          it._input.textContent = t('l.animExport') + '  \u00b7  ' + n + ' \u00d7 ' + U.nice(rate, 1) + 'fps';
+          const rate = S.animFormat === 'gif' ? Anim.gifRate() : Anim.FPS;
+          it._input.textContent = t('l.animExport') + '  \u00b7  ' + n + ' \u00d7 ' + rate + 'fps';
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';
           it._input.textContent = t(on ? 'l.bgToggleOn' : 'l.bgToggle');
@@ -773,6 +781,12 @@
       im.onload = () => {
         IMG = im;
         resetImageSettings();
+        // the canvas takes the picture's own size, so it is placed 1:1 and
+        // exports at full quality instead of being resampled into a preset
+        S.units = 'px';
+        S.cw = im.naturalWidth;
+        S.ch = im.naturalHeight;
+        S.sizePreset = 'custom';
         selected = false;
         TOKEN = file.name + ':' + file.size + ':' + Date.now();
         Engine.clearCache();
@@ -1145,9 +1159,9 @@
     return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
   }
 
-  function drawFrame(t) {
+  function drawFrame(at) {
     const d = animDims();
-    const A = Anim.frameSettings(S, t, d.w, d.h);
+    const A = Anim.frameSettings(S, at, d.w, d.h);
     let out;
     try { out = Engine.render(A, IMG, d.w, d.h, TOKEN); }
     catch (e) { stopPlay(); status(t('ui.renderFail') + e.message, true); return; }
@@ -1198,6 +1212,7 @@
 
     try {
       if (S.animFormat === 'png') {
+        if (n > 40 && !confirm(t('ui.animManyFrames', n))) return;
         status(t('ui.animProgress', 0));
         const list = Anim.frames(S, IMG, W, H, TOKEN, step);
         for (let i = 0; i < list.length; i++) {

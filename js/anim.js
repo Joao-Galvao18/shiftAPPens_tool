@@ -13,11 +13,19 @@
 (function (g) {
   'use strict';
 
-  const TYPES = ['radiate', 'breathe', 'chase', 'reveal', 'wobble'];
+  const TYPES = ['radiate', 'breathe', 'chase', 'reveal', 'wobble', 'hue'];
+
+  /* Playback and export are fixed at 60fps: at 30 a travelling band visibly
+     steps, and nothing here is expensive enough per frame to need less. GIF is
+     the one format that cannot hold it — see gifDelay below. */
+  const FPS = 60;
 
   function frameCount(S) {
-    return Math.max(2, Math.round(S.animSeconds * S.animFps));
+    return Math.max(2, Math.round(S.animSeconds * FPS));
   }
+
+  /* smoothstep, for the movements that travel out and back */
+  function ease(t, on) { return on ? t * t * (3 - 2 * t) : t; }
 
   /* how many bands it takes to run past the far corner, so a travelling band
      never pops out of existence at the edge of the stack */
@@ -56,13 +64,30 @@
         break;
       }
       case 'reveal': {
-        const ping = 1 - Math.abs(1 - 2 * t);          // 0 -> 1 -> 0
+        const ping = ease(1 - Math.abs(1 - 2 * t), S.animEase);   // 0 -> 1 -> 0
         A.ringCount = Math.max(0, Math.round(S.ringCount * ping));
         break;
       }
       case 'wobble':
         A.maskExpand = S.maskExpand + Math.sin(t * 2 * Math.PI) * amt * 4;
         break;
+      case 'hue': {
+        // a full turn of the colour wheel lands on the colours it started with
+        const deg = t * 360 * dir;
+        A.ringColors = (S.ringColors || []).map(c => U.rotateHue(c, deg));
+        if (!S.haloUseBg) A.haloColor = U.rotateHue(S.haloColor, deg);
+        if (!S.gapUseBg) A.gapColor = U.rotateHue(S.gapColor, deg);
+        break;
+      }
+    }
+
+    /* Grain that redraws every frame — the film-grain shimmer. It rides on top
+       of the cached base layer, so it costs nothing extra per frame. */
+    if (S.animGrain > 0) {
+      A.grainAmount = S.animGrain;
+      A.grainScale = S.animGrainScale;
+      A.grainMono = S.animGrainMono;
+      A.seed = (S.seed + Math.round(t * frameCount(S))) % 9973;
     }
     return A;
   }
@@ -80,20 +105,35 @@
   }
 
   /* GIF delays are whole hundredths of a second, so the real rate is 100/delay */
-  function gifDelay(fps) { return Math.max(2, Math.round(100 / fps)); }
-  function gifRate(fps) { return 100 / gifDelay(fps); }
+  /* GIF frame delays are whole hundredths of a second, so 60fps is not
+     representable: delay 1 is treated as 10fps by most decoders, leaving delay 2
+     — 50fps — as the fastest it can honestly hold. */
+  function gifDelay() { return 2; }
+  function gifRate() { return 50; }
 
   async function toGIF(S, img, W, H, token, onStep) {
     const n = frameCount(S);
-    const enc = new GIF.Encoder(W, H, gifDelay(S.animFps));
+    const enc = new GIF.Encoder(W, H, gifDelay());
+    const probes = Math.min(n, 6);
+    const total = probes + n;
+
+    // learn the palette from a few frames spread across the loop, so the whole
+    // animation shares one colour table without ever holding every frame
+    for (let i = 0; i < probes; i++) {
+      const c = Engine.render(frameSettings(S, i / probes, W, H), img, W, H, token);
+      enc.sample(c.getContext('2d').getImageData(0, 0, W, H));
+      if (onStep) onStep(i + 1, total);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    enc.begin();
+
     for (let i = 0; i < n; i++) {
       const c = Engine.render(frameSettings(S, i / n, W, H), img, W, H, token);
-      enc.add(c.getContext('2d').getImageData(0, 0, W, H));
-      if (onStep) onStep(i + 1, n + 1);
+      enc.addFrame(c.getContext('2d').getImageData(0, 0, W, H));
+      if (onStep) onStep(probes + i + 1, total);
       await new Promise(r => setTimeout(r, 0));     // let the progress paint
     }
-    if (onStep) onStep(n + 1, n + 1);
-    return enc.render();
+    return enc.finish();
   }
 
   /* MediaRecorder timestamps frames by the wall clock, so the frames are all
@@ -134,7 +174,7 @@
       rec.onstop = () => { sawStop = true; check(); };
     });
 
-    const dt = 1000 / S.animFps;
+    const dt = 1000 / FPS;
     rec.start();
     const t0 = performance.now();
     for (let i = 0; i < n; i++) {
@@ -157,6 +197,7 @@
 
   g.Anim = {
     TYPES: TYPES,
+    FPS: FPS,
     frameCount: frameCount,
     frameSettings: frameSettings,
     frames: frames,
