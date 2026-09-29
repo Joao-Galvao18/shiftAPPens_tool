@@ -127,6 +127,25 @@ subscription over one collection, because those per-person documents sit directl
 in `presets`; nesting each person's presets in a subcollection is what would force
 a roster document and a subscription per person.
 
+**Animate** — five movements of the strokes: *radiate* (bands travelling out or
+in), *breathe* (weight swelling), *chase* (the palette marching round), *reveal*
+(strokes growing and retracting) and *wobble* (the silhouette pulsing). Each is a
+function of loop time and returns to its first frame, so the loop is seamless by
+construction rather than by trimming — radiate travels a whole colour cycle, not
+one band, so the palette lands back where it started too.
+
+Every movement touches only the ring compositing. The distance field and the
+treated artwork are identical in each frame and the engine caches both, so a
+frame costs about 50ms at 700px instead of the ~1s a cold render takes. Playback
+is capped at 700px for that reason; exports render at the real size.
+
+Export as GIF, WebM or a numbered PNG per frame, at 0.5x, 1x or 2x. The GIF
+encoder is in `js/gif.js` — median-cut quantisation over a 15-bit histogram with
+one palette shared by every frame, then standard LZW. It is written out rather
+than pulled from a CDN because the artifact sandbox blocks fetching a worker
+script. GIF delays are whole hundredths of a second, so the rate snaps to the
+nearest one it can hold and the export button shows what you will actually get.
+
 **Drawing** — eight brushes (marker, pen, scribble, calligraphy, chalk, spray,
 dashed, highlighter), any colour, on a layer above the artwork, in its own tab.
 Chalk and spray stamp a deterministic grain, calligraphy varies its width with
@@ -221,6 +240,8 @@ js/i18n.js       English / Portuguese strings
 js/bg.js         background removal
 js/paint.js      the drawing layer
 js/presets.js    shared saved looks (artifact db, localStorage fallback)
+js/anim.js       stroke animation: frame model and exporters
+js/gif.js        self-contained animated-GIF encoder
 js/edt.js        distance transform, blur, hole fill
 js/contour.js    marching squares, simplification, SVG paths
 js/engine.js     placement, mask, rings, image FX, export

@@ -5,16 +5,20 @@
   'use strict';
 
   const en = {
-    tab: { strokes: 'Strokes', image: 'Image', presets: 'Presets', draw: 'Drawing' },
+    tab: { strokes: 'Strokes', image: 'Image', presets: 'Presets', draw: 'Drawing', anim: 'Animate' },
     g: {
       canvas: 'Canvas', shape: 'Shape', colours: 'Colours', silhouette: 'Silhouette',
       placement: 'Placement', bg: 'Background', treat: 'Treatment', grain: 'Grain',
-      brush: 'Brush', saved: 'Saved looks'
+      brush: 'Brush', saved: 'Saved looks', motion: 'Motion', anmexport: 'Export'
     },
     l: {
       sizePreset: 'Format', units: 'Units', cw: 'Width', ch: 'Height', dpi: 'DPI',
       basis: 'Scale strokes to', bg: 'Background', previewQuality: 'Preview quality',
-      reset: 'Reset all', presetList: 'Saved looks', align: 'Align', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
+      reset: 'Reset all', presetList: 'Saved looks', align: 'Align',
+      animPlay: 'Play', animStop: 'Stop', animType: 'Movement', animDir: 'Direction',
+      animFill: 'Fill the canvas', animAmount: 'Amount', animSeconds: 'Loop length',
+      animFps: 'Frames per second', animScrub: 'Frame', animFormat: 'Format',
+      animScale: 'Size', animExport: 'Export animation', fit: 'Fit', fitSubject: 'Frame on cut-out', imgScale: 'Scale',
       drawToggle: 'Start drawing', drawToggleOn: 'Stop drawing',
       undoDraw: 'Undo last stroke', clearDraw: 'Clear drawing', imgX: 'Offset X', imgY: 'Offset Y', rotate: 'Rotate',
       flipH: 'Flip horizontal', flipV: 'Flip vertical',
@@ -50,6 +54,9 @@
       seed: 'Starting number for the random pattern used by grain and by the Random noise dither. The same seed always draws the same speckle, so the preview and the export match; change it to reshuffle. It has no effect when grain is 0 and the dither is not Random noise.',
       svgSimplify: 'Higher = fewer points, softer curves.',
       bgToggle: 'Reads the backdrop colour from the four corners and lifts it out from the edges inwards, judging how much slack to allow from how closely the corners agree. Best on a plain or evenly lit backdrop.',
+      animType: 'Every movement returns to its first frame, so the loop is seamless. All of them move only the strokes — the cut-out and its treatment stay put, which is what keeps playback smooth.',
+      animFill: 'Adds however many strokes it takes to run past the corner, so a travelling band never pops out of existence at the edge of the stack.',
+      animExport: 'GIF for pasting anywhere, WebM for quality, or a numbered PNG for every frame. GIF delays are whole hundredths of a second, so its rate snaps to the nearest one it can hold.',
       align: 'Strokes may bleed past the edge; lower Scale to keep them inside.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
@@ -72,6 +79,11 @@
       'dm.floyd': 'Floyd–Steinberg', 'dm.noise': 'Random noise', 'dm.halftone': 'Halftone screen',
       'bg.off': 'Nothing', 'bg.auto': 'Auto (from corners)', 'bg.color': 'A colour I pick',
       'hs.dot': 'Round dot', 'hs.square': 'Square', 'hs.line': 'Line screen',
+      'an.radiate': 'Radiate', 'an.breathe': 'Breathe', 'an.chase': 'Chase',
+      'an.reveal': 'Reveal', 'an.wobble': 'Wobble',
+      'an.out': 'Outward', 'an.in': 'Inward',
+      'af.gif': 'GIF', 'af.webm': 'WebM video', 'af.png': 'PNG frames',
+      'fps.10': '10', 'fps.12': '12', 'fps.15': '15', 'fps.20': '20', 'fps.25': '25', 'fps.30': '30',
       'bt.marker': 'Marker', 'bt.pen': 'Pen', 'bt.scribble': 'Scribble',
       'bt.calligraphy': 'Calligraphy', 'bt.chalk': 'Chalk', 'bt.spray': 'Spray',
       'bt.dashed': 'Dashed', 'bt.highlighter': 'Highlighter',
@@ -116,21 +128,29 @@
       presetFail: 'That did not save. Try again.',
       someone: 'Someone',
       presetBuiltin: 'Built in',
+      animProgress: (pct) => 'Rendering the animation\u2026 ' + pct + '%',
+      animSaved: (kind, kb) => 'Saved ' + kind + ' \u2014 ' + kb + ' kB',
+      animSavedFrames: (n) => 'Saved ' + n + ' frames',
+      animFail: 'The animation did not export: ',
       hintPaint: 'Drag on the artboard to draw.'
     }
   };
 
   const pt = {
-    tab: { strokes: 'Contornos', image: 'Imagem', presets: 'Predefinições', draw: 'Desenho' },
+    tab: { strokes: 'Contornos', image: 'Imagem', presets: 'Predefinições', draw: 'Desenho', anim: 'Animar' },
     g: {
       canvas: 'Tela', shape: 'Forma', colours: 'Cores', silhouette: 'Silhueta',
       placement: 'Posicionamento', bg: 'Fundo', treat: 'Tratamento', grain: 'Grão',
-      brush: 'Pincel', saved: 'Estilos guardados'
+      brush: 'Pincel', saved: 'Estilos guardados', motion: 'Movimento', anmexport: 'Exportar'
     },
     l: {
       sizePreset: 'Formato', units: 'Unidades', cw: 'Largura', ch: 'Altura', dpi: 'DPI',
       basis: 'Escalar contornos a', bg: 'Fundo', previewQuality: 'Qualidade da pré-visualização',
-      reset: 'Repor tudo', presetList: 'Estilos guardados', align: 'Alinhar', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
+      reset: 'Repor tudo', presetList: 'Estilos guardados', align: 'Alinhar',
+      animPlay: 'Reproduzir', animStop: 'Parar', animType: 'Movimento', animDir: 'Dire\u00e7\u00e3o',
+      animFill: 'Preencher a tela', animAmount: 'Intensidade', animSeconds: 'Dura\u00e7\u00e3o do ciclo',
+      animFps: 'Imagens por segundo', animScrub: 'Fotograma', animFormat: 'Formato',
+      animScale: 'Tamanho', animExport: 'Exportar anima\u00e7\u00e3o', fit: 'Ajuste', fitSubject: 'Enquadrar pelo recorte', imgScale: 'Escala',
       drawToggle: 'Começar a desenhar', drawToggleOn: 'Parar de desenhar',
       undoDraw: 'Anular último traço', clearDraw: 'Limpar desenho', imgX: 'Deslocamento X', imgY: 'Deslocamento Y', rotate: 'Rodar',
       flipH: 'Espelhar na horizontal', flipV: 'Espelhar na vertical',
@@ -166,6 +186,9 @@
       seed: 'Número inicial do padrão aleatório usado pelo grão e pelo pontilhado Ruído aleatório. A mesma semente desenha sempre o mesmo salpico, por isso a pré-visualização e a exportação coincidem; altere-a para baralhar. Não tem efeito quando o grão está a 0 e o pontilhado não é Ruído aleatório.',
       svgSimplify: 'Mais alto = menos pontos, curvas mais suaves.',
       bgToggle: 'Lê a cor do fundo pelos quatro cantos e retira-a das margens para dentro, ajustando a margem de erro conforme os cantos concordem entre si. Funciona melhor com fundos lisos ou de iluminação uniforme.',
+      animType: 'Cada movimento regressa ao primeiro fotograma, por isso o ciclo n\u00e3o tem salto. Todos mexem apenas nos contornos \u2014 o recorte e o seu tratamento ficam quietos, o que mant\u00e9m a reprodu\u00e7\u00e3o fluida.',
+      animFill: 'Acrescenta os contornos necess\u00e1rios para passar do canto, para que uma banda em movimento nunca desapare\u00e7a de repente no limite da pilha.',
+      animExport: 'GIF para colar em qualquer lado, WebM para qualidade, ou um PNG numerado por fotograma. Os atrasos do GIF s\u00e3o cent\u00e9simos de segundo inteiros, por isso a cad\u00eancia ajusta-se \u00e0 mais pr\u00f3xima que consegue manter.',
       align: 'Os contornos podem sair pela margem; reduza a Escala para os manter dentro.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
@@ -188,6 +211,11 @@
       'dm.floyd': 'Floyd–Steinberg', 'dm.noise': 'Ruído aleatório', 'dm.halftone': 'Trama de meio-tom',
       'bg.off': 'Nada', 'bg.auto': 'Automático (pelos cantos)', 'bg.color': 'Uma cor à minha escolha',
       'hs.dot': 'Ponto redondo', 'hs.square': 'Quadrado', 'hs.line': 'Trama de linhas',
+      'an.radiate': 'Irradiar', 'an.breathe': 'Respirar', 'an.chase': 'Persegui\u00e7\u00e3o',
+      'an.reveal': 'Revelar', 'an.wobble': 'Oscilar',
+      'an.out': 'Para fora', 'an.in': 'Para dentro',
+      'af.gif': 'GIF', 'af.webm': 'V\u00eddeo WebM', 'af.png': 'Fotogramas PNG',
+      'fps.10': '10', 'fps.12': '12', 'fps.15': '15', 'fps.20': '20', 'fps.25': '25', 'fps.30': '30',
       'bt.marker': 'Marcador', 'bt.pen': 'Caneta', 'bt.scribble': 'Rabisco',
       'bt.calligraphy': 'Caligrafia', 'bt.chalk': 'Giz', 'bt.spray': 'Spray',
       'bt.dashed': 'Tracejado', 'bt.highlighter': 'Marcador fluorescente',
@@ -232,6 +260,10 @@
       presetFail: 'N\u00e3o foi poss\u00edvel guardar. Tente de novo.',
       someone: 'Algu\u00e9m',
       presetBuiltin: 'Inclu\u00eddo',
+      animProgress: (pct) => 'A gerar a anima\u00e7\u00e3o\u2026 ' + pct + '%',
+      animSaved: (kind, kb) => kind + ' guardado \u2014 ' + kb + ' kB',
+      animSavedFrames: (n) => n + ' fotogramas guardados',
+      animFail: 'N\u00e3o foi poss\u00edvel exportar a anima\u00e7\u00e3o: ',
       hintPaint: 'Arraste sobre a prancha para desenhar.'
     }
   };

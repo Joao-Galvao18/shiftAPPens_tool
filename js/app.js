@@ -92,6 +92,9 @@
       paint: [], brushColor: '#DB6AC3', brushWidth: 1.6, brushType: 'scribble',
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
+      // animation
+      animType: 'radiate', animDir: 'out', animSeconds: 2, animFps: 20,
+      animAmount: 35, animFill: true, animScale: 1, animFormat: 'gif',
       // misc
       seed: 7, svgSimplify: 0.5, svgRes: 1800, exportScale: 1
     };
@@ -221,6 +224,33 @@
       ]
     },
     {
+      id: 'anim', groups: [
+        {
+          id: 'motion', items: [
+            { k: 'animPlay', t: 'button', act: () => togglePlay() },
+            {
+              k: 'animType', t: 'select', hint: true,
+              o: [['radiate', 'an.radiate'], ['breathe', 'an.breathe'], ['chase', 'an.chase'],
+                  ['reveal', 'an.reveal'], ['wobble', 'an.wobble']]
+            },
+            { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' },
+            { k: 'animFill', t: 'check', hint: true, show: s => s.animType === 'radiate' },
+            { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
+            { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's' },
+            { k: 'animFps', t: 'select', o: [[10, 'fps.10'], [12, 'fps.12'], [15, 'fps.15'], [20, 'fps.20'], [25, 'fps.25'], [30, 'fps.30']] },
+            { k: 'animScrub', t: 'range', min: 0, max: 100, step: 1, u: '%' }
+          ]
+        },
+        {
+          id: 'anmexport', items: [
+            { k: 'animFormat', t: 'select', o: [['gif', 'af.gif'], ['webm', 'af.webm'], ['png', 'af.png']] },
+            { k: 'animScale', t: 'select', o: [[0.5, 'es.0.5'], [1, 'es.1'], [2, 'es.2']] },
+            { k: 'animExport', t: 'button', hint: true, act: () => exportAnimation() }
+          ]
+        }
+      ]
+    },
+    {
       id: 'draw', groups: [
         {
           id: 'brush', items: [
@@ -252,6 +282,10 @@
   let drawing = null;
   let dragImage = null;   // click-drag on the artboard moves the picture
   let selected = false;   // the frame and handles only show once you pick the picture up
+  let playing = false;    // animation preview
+  let playRaf = 0;
+  let playT0 = 0;
+  let scrubT = 0;         // 0..1, where the scrubber is parked while stopped
 
   const $ = sel => document.querySelector(sel);
   const view = $('#view');
@@ -282,7 +316,12 @@
       const b = U.el('button', S.tab === tab.id ? 'on' : '', t('tab.' + tab.id));
       b.type = 'button';
       b.setAttribute('aria-pressed', S.tab === tab.id);
-      b.onclick = () => { S.tab = tab.id; buildUI(); save(); };
+      b.onclick = () => {
+        if (tab.id !== 'anim') stopPlay();
+        S.tab = tab.id;
+        buildUI();
+        save();
+      };
       strip.appendChild(b);
     });
   }
@@ -325,7 +364,11 @@
     const val = U.el('span', 'val');
     let input;
 
-    const commit = (v) => { S[it.k] = v; onChange(it); };
+    const commit = (v) => {
+      if (it.k === 'animScrub') { stopPlay(); scrubT = U.clamp(v, 0, 100) / 100; drawFrame(scrubT); return; }
+      S[it.k] = v;
+      onChange(it);
+    };
 
     if (it.t === 'button') {
       input = U.el('button', 'btn small full' + (it.danger ? ' danger' : ''), t('l.' + it.k));
@@ -598,6 +641,7 @@
     }
     if (it.k === 'cw' || it.k === 'ch' || it.k === 'units' || it.k === 'dpi') S.sizePreset = 'custom';
     refresh();
+    if (playing) { save(); return; }     // the play loop draws its own frames
     scheduleRender();
     save();
   }
@@ -614,6 +658,13 @@
         if (it.k === 'drawToggle') {
           it._input.textContent = t(TOOL === 'paint' ? 'l.drawToggleOn' : 'l.drawToggle');
           it._input.classList.toggle('active', TOOL === 'paint');
+        } else if (it.k === 'animPlay') {
+          it._input.textContent = t(playing ? 'l.animStop' : 'l.animPlay');
+          it._input.classList.toggle('active', playing);
+        } else if (it.k === 'animExport') {
+          const n = Anim.frameCount(S);
+          const rate = S.animFormat === 'gif' ? Anim.gifRate(S.animFps) : S.animFps;
+          it._input.textContent = t('l.animExport') + '  \u00b7  ' + n + ' \u00d7 ' + U.nice(rate, 1) + 'fps';
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';
           it._input.textContent = t(on ? 'l.bgToggleOn' : 'l.bgToggle');
@@ -622,6 +673,12 @@
         return;
       }
       if (it.t === 'align') return;
+      if (it.k === 'animScrub') {
+        it._input.value = Math.round(scrubT * 100);
+        it._num.value = Math.round(scrubT * 100);
+        it._val.innerHTML = '<span class="pct">' + Math.round(scrubT * 100) + '%</span>';
+        return;
+      }
       const v = S[it.k];
       if (it.t === 'range') {
         it._input.value = v;
@@ -1072,6 +1129,98 @@
       if (e.key === 'Escape') { setSelected(false); return; }
       if (e.key === 'b') setTool(TOOL === 'paint' ? 'pan' : 'paint');
     });
+  }
+
+  /* ---------------- animation ---------------- */
+
+  /* Playback gets its own ceiling. A frame costs about 50ms at 700px and scales
+     with area, so the full preview resolution would drop the loop to a few
+     frames a second; the export renders at the real size regardless. */
+  const ANIM_PREVIEW_MAX = 700;
+
+  function animDims() {
+    const c = Engine.canvasPx(S);
+    const cap = Math.min(+S.previewQuality, ANIM_PREVIEW_MAX);
+    const k = Math.min(1, cap / Math.max(c.W, c.H));
+    return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
+  }
+
+  function drawFrame(t) {
+    const d = animDims();
+    const A = Anim.frameSettings(S, t, d.w, d.h);
+    let out;
+    try { out = Engine.render(A, IMG, d.w, d.h, TOKEN); }
+    catch (e) { stopPlay(); status(t('ui.renderFail') + e.message, true); return; }
+    if (view.width !== d.w || view.height !== d.h) { view.width = d.w; view.height = d.h; }
+    vctx.clearRect(0, 0, d.w, d.h);
+    vctx.drawImage(out, 0, 0);
+    fitView();
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    const ms = Math.max(100, S.animSeconds * 1000);
+    const t = ((now - playT0) % ms) / ms;
+    scrubT = t;
+    drawFrame(t);
+    playRaf = requestAnimationFrame(tick);
+  }
+
+  function startPlay() {
+    if (playing || !IMG) return;
+    playing = true;
+    setTool('pan');
+    setSelected(false);
+    playT0 = performance.now() - scrubT * Math.max(100, S.animSeconds * 1000);
+    playRaf = requestAnimationFrame(tick);
+    refresh();
+  }
+
+  function stopPlay() {
+    if (!playing) return;
+    playing = false;
+    cancelAnimationFrame(playRaf);
+    playRaf = 0;
+    refresh();
+    drawFrame(scrubT);
+  }
+
+  function togglePlay() { playing ? stopPlay() : startPlay(); }
+
+  async function exportAnimation() {
+    if (!IMG) return;
+    stopPlay();
+    const c = Engine.canvasPx(S);
+    const W = Math.round(c.W * S.animScale), H = Math.round(c.H * S.animScale);
+    const n = Anim.frameCount(S);
+    const step = (i, total) => status(t('ui.animProgress', Math.round(i / total * 100)));
+    const stamp = W + 'x' + H;
+
+    try {
+      if (S.animFormat === 'png') {
+        status(t('ui.animProgress', 0));
+        const list = Anim.frames(S, IMG, W, H, TOKEN, step);
+        for (let i = 0; i < list.length; i++) {
+          const blob = await new Promise(r => list[i].toBlob(r, 'image/png'));
+          U.download(blob, 'stroke-' + stamp + '-' + String(i + 1).padStart(3, '0') + '.png');
+          await new Promise(r => setTimeout(r, 120));   // browsers throttle bursts
+        }
+        status(t('ui.animSavedFrames', list.length));
+        return;
+      }
+      if (S.animFormat === 'webm') {
+        const blob = await Anim.toWebM(S, IMG, W, H, TOKEN, step);
+        U.download(blob, 'stroke-' + stamp + '.webm');
+        status(t('ui.animSaved', 'WebM', Math.round(blob.size / 1024)));
+        return;
+      }
+      const blob = await Anim.toGIF(S, IMG, W, H, TOKEN, step);
+      U.download(blob, 'stroke-' + stamp + '.gif');
+      status(t('ui.animSaved', 'GIF', Math.round(blob.size / 1024)));
+    } catch (e) {
+      status(t('ui.animFail') + e.message, true);
+      console.error(e);
+    }
   }
 
   /* ---------------- export ---------------- */

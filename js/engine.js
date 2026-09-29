@@ -543,6 +543,25 @@
     return W + 'x' + H + '|' + token + '|' + JSON.stringify(o);
   }
 
+  /* The treated artwork on its own. Cached apart from the rings because an
+     animation changes the rings every frame and the artwork in none of them —
+     without this, every animated frame would redo the halftone screen. */
+  let artCache = { key: null };
+
+  function artLayer(S, img, W, H, token, unit, f) {
+    const key = [
+      fieldKey(S, W, H, token),
+      S.artMode, S.artOpacity, S.brightness, S.contrast, S.saturation, S.artInvert,
+      S.posterize, S.bwThreshold, S.ditherMode, S.ditherStrength, S.ditherScale,
+      S.halftoneAngle, S.halftoneShape, S.crispPixels, S.artClip, S.inkOn,
+      S.inkColor, S.paperColor, S.paperTransparent, S.seed
+    ].join('|');
+    if (artCache.key === key) return artCache.val;
+    const val = buildArt(f.placed, f.mask, W, H, S, unit);
+    if (W * H <= 16e6) artCache = { key: key, val: val };
+    return val;
+  }
+
   function baseLayer(S, img, W, H, token, unit) {
     const key = baseKey(S, W, H, token);
     if (baseCache.key === key) return baseCache.val;
@@ -550,7 +569,7 @@
     const base = U.createCanvas(W, H);
     const bx = base.getContext('2d');
     bx.putImageData(paintRings(f.sdf, W, H, S, unit), 0, 0);
-    const art = buildArt(f.placed, f.mask, W, H, S, unit);
+    const art = artLayer(S, img, W, H, token, unit, f);
     if (art) {
       bx.globalAlpha = U.clamp(S.artOpacity / 100, 0, 1);
       bx.drawImage(art, 0, 0);
@@ -644,6 +663,6 @@
     sourceScale: sourceScale,
     subjectRect: subjectRect,
     preparedSource: preparedSource,
-    clearCache: function () { cache = { key: null }; srcCache = { key: null }; baseCache = { key: null }; }
+    clearCache: function () { cache = { key: null }; srcCache = { key: null }; baseCache = { key: null }; artCache = { key: null }; }
   };
 })(window);
