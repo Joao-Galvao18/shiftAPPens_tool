@@ -44,7 +44,7 @@
         ringOffset: 0,
         ringGrowth: 1,
         innerRings: 0,
-        ringColors: ['#FFFFFF', '#1CAEA6', '#FBDF00', '#1CAEA6', '#FBDF00'],
+        ringColors: ['#1CAEA6', '#FBDF00'],   // cycles over the 5 strokes
         gapUseBg: true, gapColor: '#ffffff',
         haloUseBg: true, haloColor: '#ffffff',
         fillUseBg: true, fillColor: '#ffffff',
