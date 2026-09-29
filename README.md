@@ -210,6 +210,15 @@ appears to do nothing at all — the strokes need somewhere to go. The margin is
 18% of the picture's short side, at least 64px, and `contain`'s scale-up is
 cancelled so the placement still comes out at 1:1.
 
+The preview renders at the resolution it is actually SHOWN at, times the
+display's pixel ratio — not at the canvas's own size — capped by the quality
+setting and never past twice the canvas. An upload plus its margin is often only
+~700px, and the artboard magnifies it to fill the pane, so rendering at the
+canvas size left it visibly soft.
+
+Every colour control carries its hex alongside the swatch; type into either.
+Palette chips show their hex on hover.
+
 The Canvas panel folds away when the sidebar is tight; it keeps showing the size
 while closed, and remembers the choice. Background removal, clipping and treatment are things
 you turn on afterwards.

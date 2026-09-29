@@ -377,7 +377,7 @@
     let input;
 
     const commit = (v) => {
-      if (it.k === 'animScrub') { stopPlay(); scrubT = U.clamp(v, 0, 100) / 100; drawFrame(scrubT); return; }
+      if (it.k === 'animScrub') { stopPlay(); scrubT = U.clamp(v, 0, 100) / 100; renderAnimFrame(scrubT); return; }
       S[it.k] = v;
       onChange(it);
     };
@@ -443,11 +443,33 @@
       lab.htmlFor = input.id;
       row.appendChild(input);
     } else if (it.t === 'color') {
-      input = U.el('input', 'swatch');
-      input.type = 'color';
-      input.id = 'c-' + it.k;
-      input.oninput = () => commit(input.value);
+      input = U.el('div', 'colorField');
+      const sw = U.el('input', 'swatch');
+      sw.type = 'color';
+      sw.id = 'c-' + it.k;
+      const hex = U.el('input', 'hex');
+      hex.type = 'text';
+      hex.maxLength = 7;
+      hex.spellcheck = false;
+      hex.setAttribute('aria-label', t('l.' + it.k) + ' hex');
+
+      const show = (v) => { sw.value = v; hex.value = String(v).toUpperCase(); };
+      sw.oninput = () => { hex.value = sw.value.toUpperCase(); commit(sw.value); };
+      const takeHex = () => {
+        let v = hex.value.trim();
+        if (v && v[0] !== '#') v = '#' + v;
+        if (/^#[0-9a-fA-F]{3}$/.test(v)) v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+        if (!/^#[0-9a-fA-F]{6}$/.test(v)) { show(S[it.k]); return; }   // put back what it was
+        show(v);
+        commit(v);
+      };
+      hex.onchange = takeHex;
+      hex.onkeydown = (e) => { if (e.key === 'Enter') { takeHex(); hex.blur(); } };
+
+      input.appendChild(sw);
+      input.appendChild(hex);
       row.appendChild(input);
+      it._show = show;
     } else if (it.t === 'palette') {
       input = U.el('div', 'pal');
       row.classList.add('col');
@@ -494,7 +516,12 @@
       const inp = U.el('input');
       inp.type = 'color';
       inp.value = c;
-      inp.oninput = () => { S.ringColors[i] = inp.value; scheduleRender(); save(); };
+      inp.title = String(c).toUpperCase();
+      inp.oninput = () => {
+        S.ringColors[i] = inp.value;
+        inp.title = inp.value.toUpperCase();
+        scheduleRender(); save();
+      };
       const del = U.el('button', 'x', '×');
       del.type = 'button';
       del.onclick = () => {
@@ -705,6 +732,7 @@
       } else if (it.t === 'check') it._input.checked = !!v;
       else if (it.t === 'palette') it._render();
       else if (it.t === 'presets') it._render();
+      else if (it.t === 'color') it._show(v);
       else if (it._input && it._input.tagName) it._input.value = v;
     });
   }
@@ -715,12 +743,32 @@
     rafId = requestAnimationFrame(() => { rafId = 0; doRender(); });
   }
 
+  /* Render the preview at the resolution it is actually SHOWN at, times the
+     display's pixel ratio — not at the canvas's own size.
+
+     An upload plus its margin is often only ~700px, and the artboard then
+     magnifies it to fill the pane: rendering 744px and displaying it across 1800
+     physical pixels is what made uploads look soft. Capped by the quality
+     setting, and never past twice the canvas, beyond which there is nothing left
+     to resolve. */
+  function previewDims() {
+    const c = Engine.canvasPx(S);
+    const long = Math.max(c.W, c.H);
+    const vp = $('#viewport');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const availW = Math.max(160, vp.clientWidth - 56);
+    const availH = Math.max(160, vp.clientHeight - 56);
+    const fit = Math.min(availW / c.W, availH / c.H, 4);
+    const shown = long * fit * dpr;
+    const target = U.clamp(shown, 320, Math.min(+S.previewQuality, long * 2));
+    const k = target / long;
+    return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
+  }
+
   function doRender() {
     const c = Engine.canvasPx(S);
-    const q = +S.previewQuality;
-    const k = Math.min(1, q / Math.max(c.W, c.H));
-    const rw = Math.max(2, Math.round(c.W * k));
-    const rh = Math.max(2, Math.round(c.H * k));
+    const d = previewDims();
+    const rw = d.w, rh = d.h;
     const t0 = performance.now();
     let out;
     try {
@@ -1180,13 +1228,14 @@
   const ANIM_PREVIEW_MAX = 700;
 
   function animDims() {
-    const c = Engine.canvasPx(S);
-    const cap = Math.min(+S.previewQuality, ANIM_PREVIEW_MAX);
-    const k = Math.min(1, cap / Math.max(c.W, c.H));
-    return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
+    const d = previewDims();
+    const long = Math.max(d.w, d.h);
+    if (long <= ANIM_PREVIEW_MAX) return d;
+    const k = ANIM_PREVIEW_MAX / long;
+    return { w: Math.max(2, Math.round(d.w * k)), h: Math.max(2, Math.round(d.h * k)) };
   }
 
-  function drawFrame(at) {
+  function renderAnimFrame(at) {
     const d = animDims();
     const A = Anim.frameSettings(S, at, d.w, d.h);
     let out;
@@ -1203,7 +1252,7 @@
     const ms = Math.max(100, S.animSeconds * 1000);
     const t = ((now - playT0) % ms) / ms;
     scrubT = t;
-    drawFrame(t);
+    renderAnimFrame(t);
     playRaf = requestAnimationFrame(tick);
   }
 
@@ -1223,7 +1272,7 @@
     cancelAnimationFrame(playRaf);
     playRaf = 0;
     refresh();
-    drawFrame(scrubT);
+    renderAnimFrame(scrubT);
   }
 
   function togglePlay() { playing ? stopPlay() : startPlay(); }

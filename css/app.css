@@ -188,6 +188,12 @@ input[type=checkbox]:checked:hover{background:var(--teal-t)}
 input[type=checkbox]:checked::after{transform:translateX(14px)}
 input[type=checkbox]:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(28,174,166,.28)}
 
+.colorField{display:flex; align-items:center; gap:6px}
+.colorField .hex{
+  width:78px; padding:5px 6px; font-family:var(--mono); font-size:10.5px;
+  text-transform:uppercase; text-align:center; letter-spacing:.02em;
+}
+
 input[type=color]{
   -webkit-appearance:none; appearance:none; border:1px solid var(--line-2);
   border-radius:7px; width:52px; height:26px; padding:0; background:none; cursor:pointer;
