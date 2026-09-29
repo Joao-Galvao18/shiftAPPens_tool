@@ -94,7 +94,7 @@
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // animation
       animType: 'radiate', animDir: 'out', animSeconds: 1.5,
-      animAmount: 35, animFill: true, animScale: 1, animFormat: 'gif',
+      animAmount: 35, animScale: 1, animFormat: 'gif',
       animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
       // misc
       seed: 7, svgSimplify: 0.5, svgRes: 1800, exportScale: 1
@@ -235,7 +235,6 @@
                   ['reveal', 'an.reveal'], ['wobble', 'an.wobble'], ['hue', 'an.hue']]
             },
             { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' || s.animType === 'hue' },
-            { k: 'animFill', t: 'check', hint: true, show: s => s.animType === 'radiate' },
             { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
             { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' },
             { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's' },

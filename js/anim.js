@@ -27,14 +27,18 @@
   /* smoothstep, for the movements that travel out and back */
   function ease(t, on) { return on ? t * t * (3 - 2 * t) : t; }
 
-  /* how many bands it takes to run past the far corner, so a travelling band
-     never pops out of existence at the edge of the stack */
-  function fillCount(S, W, H) {
+  const MAX_BANDS = 120;          // the engine's ceiling on band colour codes
+
+  /* how many bands it takes to run past the far corner starting from `from`, so
+     a travelling band only ever leaves by going out of sight */
+  function fillCount(S, from, W, H) {
     const unit = Engine.computeUnit(S.basis, W, H);
     const period = Math.max(0.01, S.strokeW + S.ringGap);
     const reach = Math.hypot(W, H) / unit * 100;
-    return Math.min(60, Math.ceil((reach - S.ringOffset) / period) + 2);
+    return Math.min(MAX_BANDS, Math.ceil((reach - from) / period) + 2);
   }
+
+  const mod = (a, n) => ((a % n) + n) % n;
 
   /* settings for one frame: a shallow copy with the animated fields replaced */
   function frameSettings(S, t, W, H) {
@@ -45,14 +49,31 @@
 
     switch (S.animType) {
       case 'radiate': {
-        // travel a whole colour cycle, so bands AND colours land back where they
-        // started; one period alone would loop the geometry but rotate the palette
+        /* Bands EMERGE from the silhouette and travel out; they never leave
+           except by going off the canvas.
+
+           Sliding the whole stack outward (what this used to do) opens a gap
+           between the subject and the innermost band that grows for the length
+           of the loop and then snaps shut — the visible cut. Instead the
+           innermost band start is held within one period of the subject, so
+           every period a new band appears hugging the cut-out, and the palette
+           rotates by one to compensate so each band keeps its own colour as it
+           travels.
+
+           Seamless at t=1: travel is period × colours, so mod(travel, period)
+           is 0 — the same geometry as t=0 — and steps is a whole number of
+           colours, so the rotation is 0 too. */
         const period = Math.max(0.01, S.strokeW + S.ringGap);
-        const span = period * cols;
-        let off = S.ringOffset + dir * t * span;
-        off = ((off - S.ringOffset) % span + span) % span + S.ringOffset;
-        A.ringOffset = off;
-        if (S.animFill && W) A.ringCount = Math.max(S.ringCount, fillCount(S, W, H));
+        const travel = dir * t * period * cols;
+
+        A.ringOffset = S.ringOffset + mod(travel, period) - period;
+        const steps = Math.floor(travel / period);
+        const rot = mod(-steps, cols);
+        const src = S.ringColors || [];
+        A.ringColors = src.slice(rot).concat(src.slice(0, rot));
+
+        A.ringGrowth = 1;      // a stack whose bands widen is not periodic
+        if (W) A.ringCount = fillCount(A, A.ringOffset, W, H);
         break;
       }
       case 'breathe':

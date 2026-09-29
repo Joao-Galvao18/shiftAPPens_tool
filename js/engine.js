@@ -11,7 +11,10 @@
 (function (g) {
   'use strict';
 
-  const MAXCODE = 64;
+  /* Ceiling on band colour codes. Filling to the canvas corner at ordinary
+     stroke weights wants ~70 bands, so 64 was not enough; the LUT stores
+     these in an Int8Array, which tops out at 127. */
+  const MAXCODE = 120;
 
   function computeUnit(basis, W, H) {
     switch (basis) {

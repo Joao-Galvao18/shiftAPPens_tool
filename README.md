@@ -127,15 +127,25 @@ subscription over one collection, because those per-person documents sit directl
 in `presets`; nesting each person's presets in a subcollection is what would force
 a roster document and a subscription per person.
 
-**Animate** — six movements of the strokes: *radiate* (bands travelling out or
-in), *breathe* (weight swelling), *chase* (the palette marching round), *reveal*
+**Animate** — six movements of the strokes: *radiate* (bands emerging from the
+cut-out and travelling out, or inward), *breathe* (weight swelling), *chase* (the palette marching round), *reveal*
 (strokes growing and retracting), *wobble* (the silhouette pulsing) and *hue
 shift* (the palette travelling round the colour wheel). Moving grain redraws the
 speckle every frame for a film-grain shimmer; it rides on top of the finished
-frame, so animating it is free. Each is a
-function of loop time and returns to its first frame, so the loop is seamless by
-construction rather than by trimming — radiate travels a whole colour cycle, not
-one band, so the palette lands back where it started too.
+frame, so animating it is free. Each is a function of loop time and returns to its first frame, so the loop is
+seamless by construction rather than by trimming.
+
+Radiate is the fiddly one. Sliding the whole stack outward opens a gap between
+the subject and the innermost band that grows all loop and then snaps shut — a
+visible cut. Instead the innermost band start is held within one period of the
+subject, so a new band emerges hugging the cut-out every period, and the palette
+rotates by one to compensate so each band keeps its own colour as it travels. At
+t=1 the travel is a whole number of periods AND of colours, so geometry and
+palette both land exactly where they started. The stack is always extended to
+run past the canvas corner, so a band only ever leaves by going out of sight —
+which is why Number of strokes does not apply while radiating, and why weight
+growth is forced to 1 (a stack whose bands widen is not periodic and could never
+loop).
 
 Every movement touches only the ring compositing. The distance field and the
 treated artwork are identical in each frame and the engine caches both, so a
