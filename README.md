@@ -135,7 +135,11 @@ speckle every frame for a film-grain shimmer; it rides on top of the finished
 frame, so animating it is free. Each is a function of loop time and returns to its first frame, so the loop is
 seamless by construction rather than by trimming.
 
-Radiate is the fiddly one. Sliding the whole stack outward opens a gap between
+Radiate is the fiddly one. Its band stack starts at a NEGATIVE phase rather than
+at "Distance from image": keeping that distance leaves a ring of background
+between the cut-out and the innermost band that widens by a whole period and then
+snaps shut. Starting in [-period, 0) means a band always straddles the
+silhouette's edge, so one is forever sliding out of it. Sliding the whole stack outward opens a gap between
 the subject and the innermost band that grows all loop and then snaps shut — a
 visible cut. Instead the innermost band start is held within one period of the
 subject, so a new band emerges hugging the cut-out every period, and the palette

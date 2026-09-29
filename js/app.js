@@ -117,44 +117,7 @@
 
   /* ---------------- tabs ---------------- */
   const TABS = [
-    {
-      id: 'strokes', groups: [
-        {
-          id: 'shape', items: [
-            { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
-            { k: 'strokeW', t: 'range', min: 0.05, max: 15, step: 0.01, u: '%', px: true, hint: true },
-            { k: 'ringGap', t: 'range', min: 0, max: 15, step: 0.01, u: '%', px: true },
-            { k: 'ringOffset', t: 'range', min: 0, max: 25, step: 0.01, u: '%', px: true },
-            { k: 'ringGrowth', t: 'range', min: 0.5, max: 2, step: 0.01, u: '×' },
-            { k: 'innerRings', t: 'range', min: 0, max: 40, step: 1 }
-          ]
-        },
-        {
-          id: 'colours', items: [
-            { k: 'ringColors', t: 'palette' },
-            { k: 'palettePreset', t: 'select', o: [['', 'pal.placeholder']].concat(Object.keys(PALETTES).map(p => [p, null, p])) },
-            { k: 'haloUseBg', t: 'check' },
-            { k: 'haloColor', t: 'color', show: s => !s.haloUseBg },
-            { k: 'gapUseBg', t: 'check' },
-            { k: 'gapColor', t: 'color', show: s => !s.gapUseBg },
-            { k: 'fillUseBg', t: 'check' },
-            { k: 'fillColor', t: 'color', show: s => !s.fillUseBg }
-          ]
-        },
-        {
-          id: 'silhouette', items: [
-            { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
-            { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource === 'dark' || s.maskSource === 'light' },
-            { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true, hint: true },
-            { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true },
-            { k: 'maskFillHoles', t: 'check' },
-            { k: 'maskInvert', t: 'check' },
-            { k: 'aa', t: 'check' }
-          ]
-        }
-      ]
-    },
-    {
+{
       id: 'image', groups: [
         {
           id: 'placement', items: [
@@ -216,14 +179,42 @@
       ]
     },
     {
-      id: 'presets', groups: [
+      id: 'strokes', groups: [
         {
-          id: 'saved', items: [
-            { k: 'presetList', t: 'presets' }
+          id: 'shape', items: [
+            { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
+            { k: 'strokeW', t: 'range', min: 0.05, max: 15, step: 0.01, u: '%', px: true, hint: true },
+            { k: 'ringGap', t: 'range', min: 0, max: 15, step: 0.01, u: '%', px: true },
+            { k: 'ringOffset', t: 'range', min: 0, max: 25, step: 0.01, u: '%', px: true },
+            { k: 'ringGrowth', t: 'range', min: 0.5, max: 2, step: 0.01, u: '×' },
+            { k: 'innerRings', t: 'range', min: 0, max: 40, step: 1 }
+          ]
+        },
+        {
+          id: 'colours', items: [
+            { k: 'ringColors', t: 'palette' },
+            { k: 'palettePreset', t: 'select', o: [['', 'pal.placeholder']].concat(Object.keys(PALETTES).map(p => [p, null, p])) },
+            { k: 'haloUseBg', t: 'check' },
+            { k: 'haloColor', t: 'color', show: s => !s.haloUseBg },
+            { k: 'gapUseBg', t: 'check' },
+            { k: 'gapColor', t: 'color', show: s => !s.gapUseBg },
+            { k: 'fillUseBg', t: 'check' },
+            { k: 'fillColor', t: 'color', show: s => !s.fillUseBg }
+          ]
+        },
+        {
+          id: 'silhouette', items: [
+            { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
+            { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource === 'dark' || s.maskSource === 'light' },
+            { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true, hint: true },
+            { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true },
+            { k: 'maskFillHoles', t: 'check' },
+            { k: 'maskInvert', t: 'check' },
+            { k: 'aa', t: 'check' }
           ]
         }
       ]
-    },
+    },,
     {
       id: 'anim', groups: [
         {
@@ -256,7 +247,7 @@
           ]
         }
       ]
-    },
+    },,
     {
       id: 'draw', groups: [
         {
@@ -272,6 +263,15 @@
             { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true },
             { k: 'undoDraw', t: 'button', act: () => { S.paint.pop(); scheduleRender(); save(); } },
             { k: 'clearDraw', t: 'button', danger: true, act: () => { S.paint = []; scheduleRender(); save(); status(t('ui.cleared')); } }
+          ]
+        }
+      ]
+    },,
+    {
+      id: 'presets', groups: [
+        {
+          id: 'saved', items: [
+            { k: 'presetList', t: 'presets' }
           ]
         }
       ]
@@ -433,10 +433,10 @@
       input = U.el('input');
       input.type = 'checkbox';
       input.id = 'c-' + it.k;
+      input.setAttribute('role', 'switch');
       input.onchange = () => commit(input.checked);
-      row.classList.add('chk');
-      row.insertBefore(input, lab);
       lab.htmlFor = input.id;
+      row.appendChild(input);
     } else if (it.t === 'color') {
       input = U.el('input', 'swatch');
       input.type = 'color';
@@ -681,8 +681,10 @@
       }
       if (it.t === 'align') return;
       if (it.k === 'animScrub') {
-        it._input.value = Math.round(scrubT * 100);
-        it._num.value = Math.round(scrubT * 100);
+        const pc = Math.round(scrubT * 100);
+        it._input.value = pc;
+        it._num.value = pc;
+        it._input.style.setProperty('--fill', pc + '%');
         it._val.innerHTML = '<span class="pct">' + Math.round(scrubT * 100) + '%</span>';
         return;
       }
@@ -690,6 +692,8 @@
       if (it.t === 'range') {
         it._input.value = v;
         it._num.value = Math.round(v * 1000) / 1000;
+        const pct = (v - it.min) / (it.max - it.min) * 100;
+        it._input.style.setProperty('--fill', U.clamp(pct, 0, 100) + '%');
         let s = '<span class="pct">' + U.nice(v, 2) + (it.u || '') + '</span>';
         if (it.px) s += ' <span class="px">' + U.nice(v / 100 * unit, 1) + 'px</span>';
         it._val.innerHTML = s;

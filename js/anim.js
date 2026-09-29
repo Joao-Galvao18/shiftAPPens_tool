@@ -66,7 +66,12 @@
         const period = Math.max(0.01, S.strokeW + S.ringGap);
         const travel = dir * t * period * cols;
 
-        A.ringOffset = S.ringOffset + mod(travel, period) - period;
+        /* The stack starts at a NEGATIVE phase, never at "Distance from image".
+           Keeping that distance leaves a ring of background between the cut-out
+           and the innermost band which widens by a whole period and then snaps —
+           the pop. Starting in [-period, 0) means a band always overlaps the
+           silhouette's edge, so one is forever sliding out of it. */
+        A.ringOffset = mod(travel, period) - period;
         const steps = Math.floor(travel / period);
         const rot = mod(-steps, cols);
         const src = S.ringColors || [];
