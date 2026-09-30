@@ -78,6 +78,14 @@
         acc += h.count[sorted[cut]];
         if (acc >= half) break;
       }
+      /* Both halves must actually get a colour. When one bin holds more than
+         half the pixels — a big flat background, which is every design here —
+         the scan above runs to the end and the "split" hands back the whole box
+         plus an empty one: the box count rises, nothing is divided, and the
+         budget burns down to 256 without ever separating the colours that were
+         sharing a box. That is what merged teal and black into one muddy
+         average. */
+      if (cut > sorted.length - 2) cut = sorted.length - 2;
       boxes.splice(pick, 1, boxFor(sorted.slice(0, cut + 1)), boxFor(sorted.slice(cut + 1)));
     }
 
@@ -171,7 +179,9 @@
   }
 
   Encoder.prototype.sample = function (imageData) {
-    accumulate(this._hist, imageData.data, 3);
+    // every pixel: only a handful of frames are sampled, and skipping pixels can
+    // miss a thin stroke's colour entirely, which then has no entry to map to
+    accumulate(this._hist, imageData.data, 1);
   };
 
   Encoder.prototype.begin = function () {
