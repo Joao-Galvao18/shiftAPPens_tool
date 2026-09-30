@@ -466,8 +466,8 @@
       hex.onchange = takeHex;
       hex.onkeydown = (e) => { if (e.key === 'Enter') { takeHex(); hex.blur(); } };
 
+      input.appendChild(hex);      // the code first: it is what people type
       input.appendChild(sw);
-      input.appendChild(hex);
       row.appendChild(input);
       it._show = show;
     } else if (it.t === 'palette') {
@@ -701,8 +701,9 @@
           it._input.textContent = t(playing ? 'l.animStop' : 'l.animPlay');
           it._input.classList.toggle('active', playing);
         } else if (it.k === 'animExport') {
-          const n = Anim.frameCount(S);
-          const rate = S.animFormat === 'gif' ? Anim.gifRate() : Anim.FPS;
+          const gif = S.animFormat === 'gif';
+          const n = gif ? Anim.gifFrameCount(S) : Anim.frameCount(S);
+          const rate = gif ? Anim.gifRate() : Anim.FPS;
           it._input.textContent = t('l.animExport') + '  \u00b7  ' + n + ' \u00d7 ' + rate + 'fps';
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';
@@ -808,9 +809,38 @@
     }
   }
 
+  /* Hand a finished file to the viewer.
+
+     A browser will only start a download it can attribute to a click, and
+     Safari in particular refuses one that lands seconds later — which is every
+     GIF, since encoding a loop takes far longer than a PNG. So the automatic
+     save is still attempted, and the status bar also gets a real link: clicking
+     that is a genuine gesture and always works. */
+  function offerFile(blob, name, msg) {
+    const url = URL.createObjectURL(blob);
+    const bar = $('#status');
+    bar.className = '';
+    bar.textContent = msg + '  ';
+    const link = U.el('a', 'savelink', t('ui.save'));
+    link.href = url;
+    link.download = name;
+    bar.appendChild(link);
+
+    const auto = document.createElement('a');
+    auto.href = url;
+    auto.download = name;
+    auto.style.display = 'none';
+    document.body.appendChild(auto);
+    try { auto.click(); } catch (e) { /* blocked: the link above still works */ }
+    auto.remove();
+
+    // keep the object alive long enough for the manual link to be used
+    setTimeout(() => URL.revokeObjectURL(url), 180000);
+  }
+
   function status(msg, bad) {
     const s = $('#status');
-    s.textContent = msg || '';
+    s.textContent = msg || '';          // also drops any Save link still shown
     s.className = bad ? 'bad' : '';
   }
 
@@ -1301,13 +1331,13 @@
       }
       if (S.animFormat === 'webm') {
         const blob = await Anim.toWebM(S, IMG, W, H, TOKEN, step);
-        U.download(blob, 'stroke-' + stamp + '.webm');
-        status(t('ui.animSaved', 'WebM', Math.round(blob.size / 1024)));
+        offerFile(blob, 'stroke-' + stamp + '.webm',
+          t('ui.animSaved', 'WebM', Math.round(blob.size / 1024)));
         return;
       }
       const blob = await Anim.toGIF(S, IMG, W, H, TOKEN, step);
-      U.download(blob, 'stroke-' + stamp + '.gif');
-      status(t('ui.animSaved', 'GIF', Math.round(blob.size / 1024)));
+      offerFile(blob, 'stroke-' + stamp + '.gif',
+        t('ui.animSaved', 'GIF', Math.round(blob.size / 1024)));
     } catch (e) {
       status(t('ui.animFail') + e.message, true);
       console.error(e);
@@ -1323,8 +1353,7 @@
       try {
         const out = Engine.render(S, IMG, W, H, TOKEN);
         out.toBlob(b => {
-          U.download(b, 'strokes-' + W + 'x' + H + '.png');
-          status(t('ui.savedPng', W, H));
+          offerFile(b, 'strokes-' + W + 'x' + H + '.png', t('ui.savedPng', W, H));
         }, 'image/png');
       } catch (e) {
         status(t('ui.exportFail') + e.message, true);
@@ -1338,8 +1367,8 @@
     setTimeout(() => {
       try {
         const svg = Engine.toSVG(S, IMG, c.W, c.H, TOKEN, +S.svgRes);
-        U.download(new Blob([svg], { type: 'image/svg+xml' }), 'strokes-' + c.W + 'x' + c.H + '.svg');
-        status(t('ui.savedSvg', Math.round(svg.length / 1024)));
+        offerFile(new Blob([svg], { type: 'image/svg+xml' }),
+          'strokes-' + c.W + 'x' + c.H + '.svg', t('ui.savedSvg', Math.round(svg.length / 1024)));
       } catch (e) {
         status(t('ui.svgFail') + e.message, true);
         console.error(e);

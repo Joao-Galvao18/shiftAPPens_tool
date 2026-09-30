@@ -190,7 +190,7 @@ input[type=checkbox]:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(28,17
 
 .colorField{display:flex; align-items:center; gap:6px}
 .colorField .hex{
-  width:78px; padding:5px 6px; font-family:var(--mono); font-size:10.5px;
+  width:86px; padding:5px 6px; font-family:var(--mono); font-size:10.5px;
   text-transform:uppercase; text-align:center; letter-spacing:.02em;
 }
 
@@ -288,10 +288,18 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:4px}
 #board.tool #view{cursor:none}
 
 #status{
-  min-height:26px; padding:6px 14px; font-size:11px; color:var(--ink-2);
+  display:flex; align-items:center; gap:8px;
+  min-height:30px; padding:4px 14px; font-size:11px; color:var(--ink-2);
   border-top:1px solid var(--line); background:var(--paper);
 }
 #status.bad{color:var(--red-t)}
+.savelink{
+  flex:none; padding:3px 10px; border-radius:6px; line-height:1.4;
+  background:var(--yellow); color:var(--ink); font-weight:500; font-size:11px;
+  text-decoration:none;
+}
+.savelink:hover{filter:brightness(.94)}
+.savelink:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
 
 /* language */
 .seg{display:inline-flex; background:var(--sunken); border-radius:7px; padding:2px}

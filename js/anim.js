@@ -130,15 +130,23 @@
     return out;
   }
 
-  /* GIF delays are whole hundredths of a second, so the real rate is 100/delay */
   /* GIF frame delays are whole hundredths of a second, so 60fps is not
      representable: delay 1 is treated as 10fps by most decoders, leaving delay 2
-     — 50fps — as the fastest it can honestly hold. */
+     — 50fps — as the fastest it can honestly hold.
+
+     So a GIF is rendered at ITS OWN rate rather than resampled from 60. Writing
+     60 frames a second and then stamping each with 20ms played every export back
+     a fifth too slow and spent a fifth of the file on frames the format cannot
+     show. The loop is a function of normalised time, so asking for 50 samples a
+     second instead of 60 costs nothing and lands on exactly animSeconds. */
   function gifDelay() { return 2; }
   function gifRate() { return 50; }
+  function gifFrameCount(S) {
+    return Math.max(2, Math.round(S.animSeconds * gifRate()));
+  }
 
   async function toGIF(S, img, W, H, token, onStep) {
-    const n = frameCount(S);
+    const n = gifFrameCount(S);
     const enc = new GIF.Encoder(W, H, gifDelay());
     const probes = Math.min(n, 6);
     const total = probes + n;
@@ -228,6 +236,7 @@
     frameSettings: frameSettings,
     frames: frames,
     gifRate: gifRate,
+    gifFrameCount: gifFrameCount,
     toGIF: toGIF,
     toWebM: toWebM
   };
