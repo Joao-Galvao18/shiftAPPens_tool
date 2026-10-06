@@ -151,7 +151,7 @@
     if (it.k === 'cw' || it.k === 'ch' || it.k === 'units' || it.k === 'dpi') S.sizePreset = 'custom';
     refresh();
     if (playing) { save(); return; }     // the play loop draws its own frames
-    scheduleRender();
+    scheduleRender(it.t === 'range');
     save();
   }
 
@@ -239,7 +239,21 @@
 
   /* ---------------- render ---------------- */
 
-  function scheduleRender() {
+  /* Two tiers. While something is being dragged — a slider, a brush — the
+     preview is rendered small enough to keep up; a moment after the dragging
+     stops it is rendered again at the resolution the screen can actually show.
+     Without the first tier a sharp preview makes every slider feel like treacle;
+     without the second the artboard is a magnified thumbnail. */
+  const DRAFT_CAP = 1100;
+  let draftUntil = 0;
+  let sharpTimer = 0;
+
+  function scheduleRender(draft) {
+    if (draft) {
+      draftUntil = performance.now() + 180;
+      clearTimeout(sharpTimer);
+      sharpTimer = setTimeout(() => { draftUntil = 0; doRender(); }, 200);
+    }
     if (rafId) return;
     rafId = requestAnimationFrame(() => { rafId = 0; doRender(); });
   }
@@ -259,7 +273,9 @@
     const availH = Math.max(160, vp.clientHeight - 56);
     const fit = Math.min(availW / c.W, availH / c.H, 4);
     const shown = long * fit * dpr;
-    const target = U.clamp(shown, 320, Math.min(+S.previewQuality, long * 2));
+    const cap = performance.now() < draftUntil
+      ? Math.min(+S.previewQuality, DRAFT_CAP) : +S.previewQuality;
+    const target = U.clamp(shown, 320, Math.min(cap, long * 2));
     const k = target / long;
     return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
   }
@@ -283,7 +299,13 @@
     Stage.drawFrame();
     const mp = c.W * c.H / 1e6;
     $('#dims').textContent = c.W + ' × ' + c.H;
-    $('#scaleinfo').textContent = Math.round(performance.now() - t0) + 'ms';
+    const shownPx = Math.round(view.getBoundingClientRect().width * Math.min(2, window.devicePixelRatio || 1));
+    const soft = shownPx > d.w * 1.08;
+    $('#scaleinfo').textContent = Math.round(performance.now() - t0) + 'ms · preview ' + d.w + 'px';
+    $('#scaleinfo').classList.toggle('soft', soft);
+    $('#scaleinfo').title = soft
+      ? 'The preview is being magnified to fill the artboard. Raise Canvas → Preview detail for a sharper view; exports are unaffected.'
+      : 'The preview is rendered at or above the size it is shown at.';
     if (mp > 40) status(t('ui.heavy', U.nice(mp, 0)));
   }
 
@@ -499,7 +521,7 @@
     commit: commit,
     act: act,
     push: (it) => controls.push(it),
-    render: scheduleRender,
+    render: scheduleRender,          // pass true while something is being dragged
     refresh: refresh,
     save: save,
     status: status,

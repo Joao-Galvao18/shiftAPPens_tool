@@ -310,7 +310,7 @@
     const last = drawing.points[drawing.points.length - 1];
     if (Math.hypot(nx - last[0], ny - last[1]) < 0.002) return;
     drawing.points.push([nx, ny]);
-    ctx.render();          // cheap: the base layer is cached
+    ctx.render(true);      // cheap: the base layer is cached, and draft keeps it fluid
   }
 
   function endStroke(e) {

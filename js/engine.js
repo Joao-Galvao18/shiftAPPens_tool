@@ -338,9 +338,19 @@
       return c;
     }
 
-    const halftone = S.artMode === 'bitmap' && S.ditherMode === 'halftone';
-    // a halftone screen needs full resolution; its cell size carries the scaling
-    const block = halftone ? 1 : Math.max(1, Math.round(S.ditherScale / 100 * unit));
+    /* Only a dither screen is drawn on a reduced grid — its cell size IS the
+       block, and the hard upscale afterwards is the look. A halftone carries its
+       scaling in the cell instead, so it needs full resolution.
+
+       This used to read ditherScale whatever the mode was. In plain photo mode,
+       where no screen exists and the control is not even shown, that silently
+       rendered the artwork at a half or a third of the canvas and then blew it
+       back up with smoothing off: an A4 at 300dpi came out of a 1240x1754 buffer,
+       and exporting at 2x gained nothing at all. */
+    const dithering = S.artMode === 'bitmap' && S.ditherMode !== 'none';
+    const halftone = dithering && S.ditherMode === 'halftone';
+    const block = (!dithering || halftone)
+      ? 1 : Math.max(1, Math.round(S.ditherScale / 100 * unit));
     const w2 = Math.max(1, Math.round(W / block));
     const h2 = Math.max(1, Math.round(H / block));
 

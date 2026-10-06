@@ -64,7 +64,7 @@
       lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
-      basis: 'short', previewQuality: 1200, bg: '#FFEA00',
+      basis: 'short', previewQuality: 2600, bg: '#FFEA00',
       // placement
       fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
@@ -307,7 +307,7 @@
               o: [['short', 'basis.short'], ['long', 'basis.long'], ['width', 'basis.width'],
                   ['height', 'basis.height'], ['diag', 'basis.diag']]
             },
-            { k: 'previewQuality', t: 'range', min: 400, max: 3000, step: 50, u: 'px' },
+            { k: 'previewQuality', t: 'range', min: 600, max: 6000, step: 100, u: 'px', hint: true },
             { k: 'reset', t: 'button', act: 'reset', danger: true }
           ]
         }

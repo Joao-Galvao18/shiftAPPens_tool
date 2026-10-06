@@ -320,6 +320,7 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
   background:var(--ground); border:1px solid var(--line); border-radius:3px; padding:4px 8px;
 }
 .pill.dim{color:var(--ink-3)}
+.pill.soft{color:var(--yellow-t); border-color:var(--yellow)}
 .seg{display:inline-flex; background:var(--sunken); border-radius:3px; padding:2px}
 .seg button{
   border:0; background:transparent; color:var(--ink-2); cursor:pointer;
