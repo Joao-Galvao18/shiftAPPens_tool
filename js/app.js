@@ -196,7 +196,7 @@
         } else if (it.k === 'animExport') {
           const gif = S.animFormat === 'gif';
           const n = gif ? Anim.gifFrameCount(S) : Anim.frameCount(S);
-          const rate = gif ? Anim.gifRate() : Anim.FPS;
+          const rate = gif ? Anim.gifRate(S) : Anim.fps(S);
           it._input.textContent = t('l.animExport') + '  ·  ' + n + ' × ' + rate + 'fps';
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';

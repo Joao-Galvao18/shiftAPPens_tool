@@ -93,7 +93,8 @@
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // animation
       animType: 'radiate', animDir: 'out', animSeconds: 1.5,
-      animAmount: 35, animScale: 1, animFormat: 'gif',
+      animAmount: 35, animScale: 1, animFormat: 'mp4',
+      animFps: 60, animQuality: 'high',
       animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
       // output
       seed: 7, svgSimplify: 0.5, svgRes: 1800, exportScale: 1
@@ -241,9 +242,20 @@
         },
         {
           id: 'anmexport', items: [
-            { k: 'animFormat', t: 'select', o: [['gif', 'af.gif'], ['webm', 'af.webm'], ['png', 'af.png']] },
+            { k: 'animFormat', t: 'select', hint: true,
+              o: [['mp4', 'af.mp4'], ['webm', 'af.webm'], ['gif', 'af.gif'], ['png', 'af.png']] },
+            {
+              k: 'animFps', t: 'select', hint: true,
+              o: [[24, 'fps.24'], [30, 'fps.30'], [50, 'fps.50'],
+                  [60, 'fps.60'], [90, 'fps.90'], [120, 'fps.120']]
+            },
+            {
+              k: 'animQuality', t: 'select',
+              o: [['standard', 'q.standard'], ['high', 'q.high'], ['max', 'q.max']],
+              show: s => s.animFormat === 'mp4' || s.animFormat === 'webm'
+            },
             { k: 'animScale', t: 'select', o: [[0.5, 'es.0.5'], [1, 'es.1'], [2, 'es.2']] },
-            { k: 'animExport', t: 'button', act: 'animExport', hint: true }
+            { k: 'animExport', t: 'button', act: 'animExport' }
           ]
         }
       ]

@@ -287,6 +287,7 @@ js/paint.js       the drawing layer
 js/engine.js      placement, mask, rings, image FX, export
 js/anim.js        stroke animation: frame model and exporters
 js/gif.js         self-contained animated-GIF encoder
+js/mp4.js         H.264 via WebCodecs, muxed into MP4 here
 
   the tool around it
 js/i18n.js        English / Portuguese strings

@@ -15,6 +15,8 @@
     },
     l: {
       sizePreset: "Preset",
+      animFps: "Frames per second",
+      animQuality: "Quality",
       exportPng: "Export PNG",
       exportSvg: "Export SVG",
       cw: "Width",
@@ -122,6 +124,8 @@
       animExport: 'GIF for pasting anywhere, WebM for quality, or a numbered PNG for every frame. GIF delays are whole hundredths of a second, so its rate snaps to the nearest one it can hold.',
       align: 'Strokes may bleed past the edge; lower Scale to keep them inside.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
+      animFormat: 'MP4 plays anywhere and keeps the most detail. WebM is the fallback where H.264 is unavailable. GIF is universal but holds 256 colours and tops out at 50fps. PNG writes every frame as its own file.',
+      animFps: 'The video formats honour this exactly. GIF cannot: its delays are whole hundredths of a second, so it is written at 50fps however high you set this.',
       svgRes: 'The strokes are traced at this size and written as real vector paths — higher follows the outline more closely and makes a bigger file.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
     },
@@ -150,6 +154,10 @@
       'bt.calligraphy': 'Calligraphy', 'bt.chalk': 'Chalk', 'bt.spray': 'Spray',
       'bt.dashed': 'Dashed', 'bt.highlighter': 'Highlighter',
       'es.0.5': '0.5×', 'es.1': '1× (canvas size)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
+      'af.mp4': 'MP4 · H.264',
+      'fps.24': '24 fps', 'fps.30': '30 fps', 'fps.50': '50 fps',
+      'fps.60': '60 fps', 'fps.90': '90 fps', 'fps.120': '120 fps',
+      'q.standard': 'Standard', 'q.high': 'High', 'q.max': 'Maximum',
       'sr.900': 'Draft', 'sr.1800': 'Normal', 'sr.3000': 'Fine', 'sr.4500': 'Maximum'
     },
     m: {
@@ -213,6 +221,8 @@
     },
     l: {
       sizePreset: "Predefinição",
+      animFps: "Imagens por segundo",
+      animQuality: "Qualidade",
       exportPng: "Exportar PNG",
       exportSvg: "Exportar SVG",
       cw: "Largura",
@@ -320,6 +330,8 @@
       animExport: 'GIF para colar em qualquer lado, WebM para qualidade, ou um PNG numerado por fotograma. Os atrasos do GIF s\u00e3o cent\u00e9simos de segundo inteiros, por isso a cad\u00eancia ajusta-se \u00e0 mais pr\u00f3xima que consegue manter.',
       align: 'Os contornos podem sair pela margem; reduza a Escala para os manter dentro.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
+      animFormat: 'O MP4 abre em todo o lado e guarda mais detalhe. O WebM é a alternativa onde não há H.264. O GIF é universal mas só tem 256 cores e no máximo 50fps. O PNG grava cada imagem num ficheiro.',
+      animFps: 'Os formatos de vídeo respeitam isto exatamente. O GIF não consegue: os atrasos são centésimos de segundo inteiros, por isso é gravado a 50fps por mais alto que escolha.',
       svgRes: 'Os contornos são traçados a este tamanho e escritos como vetores reais — mais alto segue melhor o contorno e dá um ficheiro maior.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
     },
@@ -348,6 +360,10 @@
       'bt.calligraphy': 'Caligrafia', 'bt.chalk': 'Giz', 'bt.spray': 'Spray',
       'bt.dashed': 'Tracejado', 'bt.highlighter': 'Marcador fluorescente',
       'es.0.5': '0,5×', 'es.1': '1× (tamanho da tela)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
+      'af.mp4': 'MP4 · H.264',
+      'fps.24': '24 fps', 'fps.30': '30 fps', 'fps.50': '50 fps',
+      'fps.60': '60 fps', 'fps.90': '90 fps', 'fps.120': '120 fps',
+      'q.standard': 'Normal', 'q.high': 'Alta', 'q.max': 'Máxima',
       'sr.900': 'Rascunho', 'sr.1800': 'Normal', 'sr.3000': 'Fino', 'sr.4500': 'Máximo'
     },
     m: {

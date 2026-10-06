@@ -15,13 +15,34 @@
 
   const TYPES = ['radiate', 'breathe', 'chase', 'reveal', 'wobble', 'hue'];
 
-  /* Playback and export are fixed at 60fps: at 30 a travelling band visibly
-     steps, and nothing here is expensive enough per frame to need less. GIF is
-     the one format that cannot hold it — see gifDelay below. */
-  const FPS = 60;
+  /* The frame rate is yours to pick, 60 by default: below about 50 a travelling
+     band visibly steps, and nothing here is expensive enough per frame to need
+     less. GIF is the one format that cannot keep up — see gifDelay below.
+
+     Playback is unaffected either way; it samples the loop by clock time, so it
+     runs at whatever the display refreshes at. */
+  const DEFAULT_FPS = 60;
+
+  function fps(S) {
+    const v = Math.round(+(S && S.animFps) || DEFAULT_FPS);
+    return Math.min(240, Math.max(8, v));
+  }
 
   function frameCount(S) {
-    return Math.max(2, Math.round(S.animSeconds * FPS));
+    return Math.max(2, Math.round(S.animSeconds * fps(S)));
+  }
+
+  /* Bits per second for the video formats. Rate scales with pixels AND with
+     frame rate, because doubling either doubles how much has to be described;
+     the quality setting is bits per pixel per frame. Flat colour with hard
+     edges is the worst case for a block codec, so even "standard" here is
+     generous by streaming standards. */
+  const BPP = { standard: 0.07, high: 0.16, max: 0.32 };
+
+  function bitrate(S, W, H) {
+    const bpp = BPP[S.animQuality] || BPP.high;
+    const want = W * H * fps(S) * bpp;
+    return Math.round(Math.min(160e6, Math.max(2e6, want)));
   }
 
   /* smoothstep, for the movements that travel out and back */
@@ -130,24 +151,24 @@
     return out;
   }
 
-  /* GIF frame delays are whole hundredths of a second, so 60fps is not
+  /* GIF frame delays are whole hundredths of a second, so most rates are not
      representable: delay 1 is treated as 10fps by most decoders, leaving delay 2
-     — 50fps — as the fastest it can honestly hold.
+     — 50fps — as the fastest the format can honestly hold.
 
-     So a GIF is rendered at ITS OWN rate rather than resampled from 60. Writing
-     60 frames a second and then stamping each with 20ms played every export back
-     a fifth too slow and spent a fifth of the file on frames the format cannot
-     show. The loop is a function of normalised time, so asking for 50 samples a
-     second instead of 60 costs nothing and lands on exactly animSeconds. */
-  function gifDelay() { return 2; }
-  function gifRate() { return 50; }
+     So a GIF is rendered at ITS OWN rate rather than resampled from the one you
+     picked. Writing 60 frames a second and then stamping each with 20ms played
+     every export back a fifth too slow and spent a fifth of the file on frames
+     no decoder shows. The loop is a function of normalised time, so asking for
+     50 samples a second instead costs nothing and lands on exactly animSeconds. */
+  function gifDelay(S) { return Math.max(2, Math.round(100 / fps(S))); }
+  function gifRate(S) { return 100 / gifDelay(S); }
   function gifFrameCount(S) {
-    return Math.max(2, Math.round(S.animSeconds * gifRate()));
+    return Math.max(2, Math.round(S.animSeconds * gifRate(S)));
   }
 
   async function toGIF(S, img, W, H, token, onStep) {
     const n = gifFrameCount(S);
-    const enc = new GIF.Encoder(W, H, gifDelay());
+    const enc = new GIF.Encoder(W, H, gifDelay(S));
     const probes = Math.min(n, 6);
     const total = probes + n;
 
@@ -192,7 +213,7 @@
     ctx.drawImage(bmps[0], 0, 0);          // give the track a frame before it opens
     const stream = cv.captureStream(0);
     const track = stream.getVideoTracks()[0];
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 });
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate(S, W, H) });
     const chunks = [];
 
     // wait for BOTH the final data and the stop event, with a ceiling so a
@@ -208,7 +229,7 @@
       rec.onstop = () => { sawStop = true; check(); };
     });
 
-    const dt = 1000 / FPS;
+    const dt = 1000 / fps(S);
     rec.start();
     const t0 = performance.now();
     for (let i = 0; i < n; i++) {
@@ -223,21 +244,77 @@
     bmps.forEach(b => b.close && b.close());
 
     const blob = new Blob(chunks, { type: mime });
-    // the recorder can come back empty (a throttled background tab is the usual
-    // reason); an empty file downloaded silently is the worst possible outcome
-    if (!blob.size) throw new Error('the recorder returned no video');
+    /* The recorder can come back with nothing in it — a throttled tab is the
+       usual reason, and captureStream's requestFrame simply never lands. A
+       non-empty blob is not proof of anything either: an EBML header alone is
+       about a hundred bytes and downloads perfectly happily. So the file is
+       opened before it is handed over, and a video that will not even report
+       its own width is reported as the failure it is. */
+    if (blob.size < 1024 || !(await playable(blob))) {
+      throw new Error('the recorder produced an unplayable file — export MP4 instead');
+    }
     return blob;
+  }
+
+  /* can a video element make sense of this? */
+  function playable(blob) {
+    return new Promise(res => {
+      const url = URL.createObjectURL(blob);
+      const v = document.createElement('video');
+      v.muted = true;
+      v.preload = 'metadata';
+      let settled = false;
+      const done = (ok) => {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(url);
+        res(ok);
+      };
+      // a recorded WebM often reports an infinite duration, so only the frame
+      // size is worth trusting here
+      v.onloadedmetadata = () => done(v.videoWidth > 0 && v.videoHeight > 0);
+      v.onerror = () => done(false);
+      setTimeout(() => done(false), 5000);
+      v.src = url;
+    });
+  }
+
+  /* H.264, straight from the frames. Nothing is held in memory but the encoded
+     chunks: each frame is rendered, handed to the encoder and dropped, so a long
+     clip at full size costs no more than a short one. */
+  async function toMP4(S, img, W, H, token, onStep) {
+    if (!window.MP4 || !MP4.available()) {
+      throw new Error('this browser cannot encode H.264 — try WebM');
+    }
+    const n = frameCount(S);
+    const scratch = U.createCanvas(2, 2);
+    return MP4.encode({
+      width: W, height: H, fps: fps(S), frames: n, bitrate: bitrate(S, W, H),
+      onStep: onStep,
+      draw: (i, w, h) => {
+        const c = Engine.render(frameSettings(S, i / n, W, H), img, W, H, token);
+        if (w === W && h === H) return c;
+        // the codec needs even dimensions; redraw rather than hand it an odd canvas
+        if (scratch.width !== w || scratch.height !== h) { scratch.width = w; scratch.height = h; }
+        const x = scratch.getContext('2d');
+        x.clearRect(0, 0, w, h);
+        x.drawImage(c, 0, 0);
+        return scratch;
+      }
+    });
   }
 
   g.Anim = {
     TYPES: TYPES,
-    FPS: FPS,
+    fps: fps,
+    bitrate: bitrate,
     frameCount: frameCount,
     frameSettings: frameSettings,
     frames: frames,
     gifRate: gifRate,
     gifFrameCount: gifFrameCount,
     toGIF: toGIF,
-    toWebM: toWebM
+    toWebM: toWebM,
+    toMP4: toMP4
   };
 })(window);

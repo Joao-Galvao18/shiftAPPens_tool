@@ -71,7 +71,11 @@
   async function animation() {
     if (!ctx.IMG) return;
     const c = Engine.canvasPx(S());
-    const W = Math.round(c.W * S().animScale), H = Math.round(c.H * S().animScale);
+    let W = Math.round(c.W * S().animScale), H = Math.round(c.H * S().animScale);
+    // H.264 only encodes even dimensions. Trim here rather than inside the
+    // encoder, so the frames are rendered at the size the file actually is and
+    // the name on it is the truth.
+    if (S().animFormat === 'mp4') { W -= W % 2; H -= H % 2; }
     const n = Anim.frameCount(S());
     const step = (i, total) => ctx.status(t('ui.animProgress', Math.round(i / total * 100)));
     const stamp = W + 'x' + H;
@@ -87,6 +91,12 @@
           await new Promise(r => setTimeout(r, 120));   // browsers throttle bursts
         }
         ctx.status(t('ui.animSavedFrames', list.length));
+        return;
+      }
+      if (S().animFormat === 'mp4') {
+        const blob = await Anim.toMP4(S(), ctx.IMG, W, H, ctx.TOKEN, step);
+        offerFile(blob, 'stroke-' + stamp + '.mp4',
+          t('ui.animSaved', 'MP4', Math.round(blob.size / 1024)));
         return;
       }
       if (S().animFormat === 'webm') {
