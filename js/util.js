@@ -17,7 +17,6 @@
     const n = parseInt(h, 16) || 0;
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   };
-  U.rgb2hex = (a) => '#' + a.map(v => U.clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
 
   U.createCanvas = function (w, h) {
     const c = document.createElement('canvas');

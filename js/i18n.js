@@ -5,14 +5,18 @@
   'use strict';
 
   const en = {
-    tab: { strokes: 'Strokes', image: 'Image', presets: 'Presets', draw: 'Drawing', anim: 'Animate' },
+    tab: { strokes: 'Strokes', image: 'Image', presets: 'Presets', draw: 'Drawing', anim: 'Animate',
+           canvas: 'Canvas', export: 'Export' },
     g: {
       canvas: 'Canvas', shape: 'The strokes', colours: 'Colours', silhouette: 'Shape detection',
       placement: 'Position', bg: 'Background', treat: 'Look', grain: 'Grain',
-      brush: 'Brush', saved: 'Saved looks', motion: 'Motion', anmgrain: 'Grain', anmexport: 'Export'
+      brush: 'Brush', saved: 'Saved looks', motion: 'Motion', anmgrain: 'Grain', anmexport: 'Export',
+      size: 'Size', quality: 'Measuring and preview', still: 'Still image', vector: 'Vector'
     },
     l: {
       sizePreset: "Preset",
+      exportPng: "Export PNG",
+      exportSvg: "Export SVG",
       cw: "Width",
       ch: "Height",
       units: "Units",
@@ -118,6 +122,7 @@
       animExport: 'GIF for pasting anywhere, WebM for quality, or a numbered PNG for every frame. GIF delays are whole hundredths of a second, so its rate snaps to the nearest one it can hold.',
       align: 'Strokes may bleed past the edge; lower Scale to keep them inside.',
       halftoneAngle: 'Traditional screens sit at 45 degrees, where the dot pattern is least visible to the eye.',
+      svgRes: 'The strokes are traced at this size and written as real vector paths — higher follows the outline more closely and makes a bigger file.',
       brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
     },
     o: {
@@ -198,14 +203,18 @@
   };
 
   const pt = {
-    tab: { strokes: 'Contornos', image: 'Imagem', presets: 'Predefinições', draw: 'Desenho', anim: 'Animar' },
+    tab: { strokes: 'Contornos', image: 'Imagem', presets: 'Predefinições', draw: 'Desenho', anim: 'Animar',
+           canvas: 'Tela', export: 'Exportar' },
     g: {
       canvas: 'Tela', shape: 'Os contornos', colours: 'Cores', silhouette: 'Dete\u00e7\u00e3o da forma',
       placement: 'Posicionamento', bg: 'Fundo', treat: 'Tratamento', grain: 'Grão',
-      brush: 'Pincel', saved: 'Estilos guardados', motion: 'Movimento', anmgrain: 'Grão', anmexport: 'Exportar'
+      brush: 'Pincel', saved: 'Estilos guardados', motion: 'Movimento', anmgrain: 'Grão', anmexport: 'Exportar',
+      size: 'Tamanho', quality: 'Medidas e pré-visualização', still: 'Imagem fixa', vector: 'Vetor'
     },
     l: {
-      sizePreset: "Predefini\u00e7\u00e3o",
+      sizePreset: "Predefinição",
+      exportPng: "Exportar PNG",
+      exportSvg: "Exportar SVG",
       cw: "Largura",
       ch: "Altura",
       units: "Unidades",
@@ -311,6 +320,7 @@
       animExport: 'GIF para colar em qualquer lado, WebM para qualidade, ou um PNG numerado por fotograma. Os atrasos do GIF s\u00e3o cent\u00e9simos de segundo inteiros, por isso a cad\u00eancia ajusta-se \u00e0 mais pr\u00f3xima que consegue manter.',
       align: 'Os contornos podem sair pela margem; reduza a Escala para os manter dentro.',
       halftoneAngle: 'As tramas tradicionais ficam a 45 graus, o ângulo em que o padrão de pontos é menos visível ao olho.',
+      svgRes: 'Os contornos são traçados a este tamanho e escritos como vetores reais — mais alto segue melhor o contorno e dá um ficheiro maior.',
       brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
     },
     o: {

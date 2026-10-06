@@ -1,12 +1,29 @@
 <title>Offset Stroke Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/app.css?v=20261006g">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/app.css?v=20261006h">
 
 <div id="app">
 
-  <aside id="side">
+  <nav id="rail" aria-label="Sections">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 40 44">
+        <path class="star" d="M20 1 21.41 5.06 25.71 5.15 22.28 7.74 23.53 11.85 20 9.4 16.47 11.85 17.72 7.74 14.29 5.15 18.59 5.06Z"/>
+        <g class="tracks">
+          <path d="M20 39V14"/>
+          <path d="M16 39c0-12-.6-18-1.8-25"/>
+          <path d="M24 39c0-12 .6-18 1.8-25"/>
+          <path d="M12 39c0-12-2-19-4.4-25"/>
+          <path d="M28 39c0-12 2-19 4.4-25"/>
+        </g>
+        <path class="ground" d="M5 41h30"/>
+      </svg>
+    </div>
+    <div id="railItems"></div>
+  </nav>
+
+  <aside id="panel">
     <div class="drop">
       <input type="file" id="file" accept="image/*" hidden>
       <button id="pick" class="btn primary">Upload image</button>
@@ -14,33 +31,24 @@
       <div id="srcinfo" class="srcinfo"></div>
     </div>
 
-    <section id="canvasCard" class="canvasBlock">
-      <button id="canvasToggle" class="cardHead" type="button">
-        <span class="chev" aria-hidden="true"></span>
-        <span id="canvasTitle">Canvas</span>
-        <em id="canvasSummary"></em>
-      </button>
-      <div id="canvasBlock"></div>
-    </section>
+    <header id="panelHead">
+      <h2 id="sectionTitle"></h2>
+      <div class="rule" aria-hidden="true"></div>
+    </header>
 
-    <nav id="tabs" class="tabs" role="tablist"></nav>
-
-    <div id="panels"></div>
+    <div id="groups"></div>
   </aside>
 
   <main id="stage" data-drop="Drop image">
     <div id="toolbar">
-      <span class="spacer"></span>
-
       <span id="dims" class="pill"></span>
       <span id="scaleinfo" class="pill dim"></span>
+      <span class="spacer"></span>
       <div id="lang" class="seg" role="group" aria-label="Language">
         <button type="button" data-lang="en" class="on" aria-pressed="true">EN</button>
         <button type="button" data-lang="pt" aria-pressed="false">PT</button>
       </div>
-      <button id="fit" class="btn ghost small">Fit</button>
-      <button id="exportPng" class="btn small">Export PNG</button>
-      <button id="exportSvg" class="btn small">Export SVG</button>
+      <button id="fit" class="btn ghost">Fit</button>
     </div>
     <div id="viewport"><div id="board"><canvas id="view"></canvas><canvas id="cursor"></canvas></div></div>
     <div id="status"></div>
@@ -48,14 +56,18 @@
 
 </div>
 
-<script src="js/util.js?v=20261006g"></script>
-<script src="js/i18n.js?v=20261006g"></script>
-<script src="js/edt.js?v=20261006g"></script>
-<script src="js/contour.js?v=20261006g"></script>
-<script src="js/bg.js?v=20261006g"></script>
-<script src="js/paint.js?v=20261006g"></script>
-<script src="js/gif.js?v=20261006g"></script>
-<script src="js/anim.js?v=20261006g"></script>
-<script src="js/presets.js?v=20261006g"></script>
-<script src="js/engine.js?v=20261006g"></script>
-<script src="js/app.js?v=20261006g"></script>
+<script src="js/util.js?v=20261006h"></script>
+<script src="js/i18n.js?v=20261006h"></script>
+<script src="js/edt.js?v=20261006h"></script>
+<script src="js/contour.js?v=20261006h"></script>
+<script src="js/bg.js?v=20261006h"></script>
+<script src="js/paint.js?v=20261006h"></script>
+<script src="js/gif.js?v=20261006h"></script>
+<script src="js/anim.js?v=20261006h"></script>
+<script src="js/presets.js?v=20261006h"></script>
+<script src="js/engine.js?v=20261006h"></script>
+<script src="js/schema.js?v=20261006h"></script>
+<script src="js/controls.js?v=20261006h"></script>
+<script src="js/stage.js?v=20261006h"></script>
+<script src="js/exporters.js?v=20261006h"></script>
+<script src="js/app.js?v=20261006h"></script>

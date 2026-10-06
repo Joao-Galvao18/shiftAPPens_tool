@@ -275,20 +275,33 @@ Browsers cache the JS hard — after editing a file under `js/`, hard-refresh
 ## Files
 
 ```
-index.html       markup shell
-css/app.css      light UI
-js/util.js       helpers
-js/i18n.js       English / Portuguese strings
-js/bg.js         background removal
-js/paint.js      the drawing layer
-js/presets.js    shared saved looks (artifact db, localStorage fallback)
-js/anim.js       stroke animation: frame model and exporters
-js/gif.js        self-contained animated-GIF encoder
-js/edt.js        distance transform, blur, hole fill
-js/contour.js    marching squares, simplification, SVG paths
-js/engine.js     placement, mask, rings, image FX, export
-js/app.js        parameter schema, generated UI, wiring
+index.html        markup shell
+css/app.css       the project palette, wearing Moscow 1980
+
+  the picture pipeline, bottom up
+js/util.js        helpers
+js/edt.js         distance transform, blur, hole fill
+js/contour.js     marching squares, simplification, SVG paths
+js/bg.js          background removal
+js/paint.js       the drawing layer
+js/engine.js      placement, mask, rings, image FX, export
+js/anim.js        stroke animation: frame model and exporters
+js/gif.js         self-contained animated-GIF encoder
+
+  the tool around it
+js/i18n.js        English / Portuguese strings
+js/schema.js      what the tool is made of, as data: sections, groups, controls
+js/controls.js    one schema item -> one row you can operate; chips and presets
+js/stage.js       the artboard: drag, scale, zoom, brush, selection frame
+js/exporters.js   PNG, SVG and animation, and handing the file over
+js/presets.js     shared saved looks (artifact db, localStorage fallback)
+js/app.js         the settings, the preview, and what everything is wired to
 ```
+
+`schema.js` through `exporters.js` never touch the settings directly. `app.js` builds one small
+context object — the state, `commit`, `refresh`, `save`, `status` — and hands it to each module at
+boot, which is what keeps the seams honest: a control reports a new value and lets `app.js` decide
+what it means.
 
 Settings persist in `localStorage`, language included. `window.OFFSET.settings` exposes live state
 from the console.
