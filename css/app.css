@@ -241,6 +241,8 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
 .btn.primary{background:var(--yellow); border-color:var(--yellow); width:100%; padding:12px 14px; font-size:13px}
 .btn.primary:hover{filter:brightness(.95)}
 .btn.active{background:var(--pink); border-color:var(--pink); color:var(--ink)}
+.btn.partial{border-color:var(--yellow-t)}
+.btn.partial::after{content:" ·  part loop"; color:var(--yellow-t); letter-spacing:.06em}
 .btn.danger{color:var(--red-t)}
 .btn.danger:hover{background:var(--red); border-color:var(--red); color:var(--ink)}
 .btn.ghost{background:none}

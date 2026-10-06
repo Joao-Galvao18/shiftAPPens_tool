@@ -28,8 +28,36 @@
     return Math.min(240, Math.max(8, v));
   }
 
+  /* Two separate things, and they used to be one.
+
+     animSeconds is how long ONE CYCLE of the movement takes — that is the speed,
+     and shortening it makes everything move faster. animDuration is how long the
+     exported file runs, which is free to be several cycles, or part of one.
+
+     A frame's phase therefore comes from the clock, not from its position in the
+     file: frame i lands at i/rate seconds, and that divided by the cycle length
+     is where the movement has got to. A duration that is a whole number of
+     cycles ends exactly where it began. */
+  function loopSeconds(S) {
+    return Math.max(0.05, +S.animSeconds || 1.5);
+  }
+
+  function durationSeconds(S) {
+    const v = +(S && S.animDuration);
+    return Math.max(0.1, isFinite(v) && v > 0 ? v : loopSeconds(S));
+  }
+
+  function cycles(S) {
+    return durationSeconds(S) / loopSeconds(S);
+  }
+
+  /* where the movement has got to on frame i, as 0..1 within one cycle */
+  function phase(S, i, rate) {
+    return mod((i / rate) / loopSeconds(S), 1);
+  }
+
   function frameCount(S) {
-    return Math.max(2, Math.round(S.animSeconds * fps(S)));
+    return Math.max(2, Math.round(durationSeconds(S) * fps(S)));
   }
 
   /* Bits per second for the video formats. Rate scales with pixels AND with
@@ -143,9 +171,10 @@
 
   function frames(S, img, W, H, token, onStep) {
     const n = frameCount(S);
+    const rate = fps(S);
     const out = [];
     for (let i = 0; i < n; i++) {
-      out.push(Engine.render(frameSettings(S, i / n, W, H), img, W, H, token));
+      out.push(Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token));
       if (onStep) onStep(i + 1, n);
     }
     return out;
@@ -163,7 +192,7 @@
   function gifDelay(S) { return Math.max(2, Math.round(100 / fps(S))); }
   function gifRate(S) { return 100 / gifDelay(S); }
   function gifFrameCount(S) {
-    return Math.max(2, Math.round(S.animSeconds * gifRate(S)));
+    return Math.max(2, Math.round(durationSeconds(S) * gifRate(S)));
   }
 
   async function toGIF(S, img, W, H, token, onStep) {
@@ -175,15 +204,16 @@
     // learn the palette from a few frames spread across the loop, so the whole
     // animation shares one colour table without ever holding every frame
     for (let i = 0; i < probes; i++) {
-      const c = Engine.render(frameSettings(S, i / probes, W, H), img, W, H, token);
+      const c = Engine.render(frameSettings(S, i / probes, W, H), img, W, H, token);   // palette only: spread over one cycle
       enc.sample(c.getContext('2d').getImageData(0, 0, W, H));
       if (onStep) onStep(i + 1, total);
       await new Promise(r => setTimeout(r, 0));
     }
     enc.begin();
 
+    const rate = gifRate(S);
     for (let i = 0; i < n; i++) {
-      const c = Engine.render(frameSettings(S, i / n, W, H), img, W, H, token);
+      const c = Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token);
       enc.addFrame(c.getContext('2d').getImageData(0, 0, W, H));
       if (onStep) onStep(probes + i + 1, total);
       await new Promise(r => setTimeout(r, 0));     // let the progress paint
@@ -200,9 +230,10 @@
     if (!mime) throw new Error('no webm support');
 
     const n = frameCount(S);
+    const rate = fps(S);
     const bmps = [];
     for (let i = 0; i < n; i++) {
-      const c = Engine.render(frameSettings(S, i / n, W, H), img, W, H, token);
+      const c = Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token);
       bmps.push(await createImageBitmap(c));
       if (onStep) onStep(i + 1, n + n);
       await new Promise(r => setTimeout(r, 0));
@@ -287,12 +318,13 @@
       throw new Error('this browser cannot encode H.264 — try WebM');
     }
     const n = frameCount(S);
+    const rate = fps(S);
     const scratch = U.createCanvas(2, 2);
     return MP4.encode({
-      width: W, height: H, fps: fps(S), frames: n, bitrate: bitrate(S, W, H),
+      width: W, height: H, fps: rate, frames: n, bitrate: bitrate(S, W, H),
       onStep: onStep,
       draw: (i, w, h) => {
-        const c = Engine.render(frameSettings(S, i / n, W, H), img, W, H, token);
+        const c = Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token);
         if (w === W && h === H) return c;
         // the codec needs even dimensions; redraw rather than hand it an odd canvas
         if (scratch.width !== w || scratch.height !== h) { scratch.width = w; scratch.height = h; }
@@ -307,6 +339,9 @@
   g.Anim = {
     TYPES: TYPES,
     fps: fps,
+    loopSeconds: loopSeconds,
+    durationSeconds: durationSeconds,
+    cycles: cycles,
     bitrate: bitrate,
     frameCount: frameCount,
     frameSettings: frameSettings,

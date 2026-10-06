@@ -197,7 +197,12 @@
           const gif = S.animFormat === 'gif';
           const n = gif ? Anim.gifFrameCount(S) : Anim.frameCount(S);
           const rate = gif ? Anim.gifRate(S) : Anim.fps(S);
-          it._input.textContent = t('l.animExport') + '  ·  ' + n + ' × ' + rate + 'fps';
+          // a duration that is not a whole number of cycles stops partway
+          // through the movement, so say so on the button itself
+          const loops = Anim.cycles(S);
+          it._input.textContent = t('l.animExport') + '  ·  ' + U.nice(Anim.durationSeconds(S), 1) +
+            's  ·  ' + n + ' × ' + rate + 'fps';
+          it._input.classList.toggle('partial', Math.abs(loops - Math.round(loops)) > 0.02);
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';
           it._input.textContent = t(on ? 'l.bgToggleOn' : 'l.bgToggle');

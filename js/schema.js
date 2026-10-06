@@ -92,7 +92,7 @@
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // animation
-      animType: 'radiate', animDir: 'out', animSeconds: 1.5,
+      animType: 'radiate', animDir: 'out', animSeconds: 1.5, animDuration: 3,
       animAmount: 35, animScale: 1, animFormat: 'mp4',
       animFps: 60, animQuality: 'high',
       animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
@@ -229,7 +229,7 @@
             { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' || s.animType === 'hue' },
             { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
             { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' },
-            { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's' },
+            { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's', hint: true },
             { k: 'animScrub', t: 'range', min: 0, max: 100, step: 1, u: '%' }
           ]
         },
@@ -254,6 +254,7 @@
               o: [['standard', 'q.standard'], ['high', 'q.high'], ['max', 'q.max']],
               show: s => s.animFormat === 'mp4' || s.animFormat === 'webm'
             },
+            { k: 'animDuration', t: 'range', min: 0.2, max: 60, step: 0.1, u: 's', hint: true },
             { k: 'animScale', t: 'select', o: [[0.5, 'es.0.5'], [1, 'es.1'], [2, 'es.2']] },
             { k: 'animExport', t: 'button', act: 'animExport' }
           ]
