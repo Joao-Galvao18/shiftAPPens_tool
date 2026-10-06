@@ -22,15 +22,6 @@
      they are one click away when you are colouring the artwork too. */
   const BRAND = ['#DF48B6', '#FFEA00', '#FE593B', '#32C4BA', '#039545', '#1A2321', '#FFFBF8'];
 
-  const PALETTES = {
-    'shift-yellow': { bg: '#FFEA00', rings: ['#32C4BA', '#039545'], ink: '#1A2321' },
-    'shift-cream': { bg: '#FFFBF8', rings: ['#FFEA00', '#32C4BA'], ink: '#FE593B' },
-    'acid': { bg: '#0B0B0B', rings: ['#C6FF00', '#00E5FF', '#FF2D95'], ink: '#FFFFFF' },
-    'risograph': { bg: '#F3EFE6', rings: ['#FF4B33', '#0050FF'], ink: '#111111' },
-    'mono': { bg: '#FFFFFF', rings: ['#000000'], ink: '#000000' },
-    'sunset': { bg: '#2B1055', rings: ['#FF6B6B', '#FFD93D', '#6BCB77'], ink: '#FFFFFF' }
-  };
-
   /* Everything the Strokes tab owns, plus the background the palette was picked
      against — without it a saved look lands on the wrong ground. */
   const STROKE_KEYS = [
@@ -197,7 +188,6 @@
         {
           id: 'colours', items: [
             { k: 'ringColors', t: 'palette' },
-            { k: 'palettePreset', t: 'select', o: [['', 'pal.placeholder']].concat(Object.keys(PALETTES).map(p => [p, null, p])) },
             { k: 'haloUseBg', t: 'check' },
             { k: 'haloColor', t: 'color', show: s => !s.haloUseBg },
             { k: 'gapUseBg', t: 'check' },
@@ -587,16 +577,37 @@
     const row = U.el('div', 'chiprow');
     S.ringColors.forEach((c, i) => {
       const w = U.el('div', 'chip' + (chipDrag && chipDrag.at === i ? ' held' : ''));
-      const inp = U.el('input');
+      const inp = U.el('input', 'sw');
       inp.type = 'color';
       inp.value = c;
-      inp.title = String(c).toUpperCase();
-      inp.oninput = () => {
-        S.ringColors[i] = inp.value;
-        inp.title = inp.value.toUpperCase();
+      const hx = U.el('input', 'hx');
+      hx.type = 'text';
+      hx.maxLength = 7;
+      hx.spellcheck = false;
+      hx.value = String(c).toUpperCase();
+      hx.setAttribute('aria-label', t('ui.brandRow') + ' ' + (i + 1));
+
+      const put = (v) => {
+        S.ringColors[i] = v;
+        inp.value = v;
+        hx.value = v.toUpperCase();
         scheduleRender(); save();
       };
-      w.onpointerdown = (ev) => beginChipDrag(box, i, ev);
+      inp.oninput = () => put(inp.value);
+      const takeHex = () => {
+        let v = hx.value.trim();
+        if (v && v[0] !== '#') v = '#' + v;
+        if (/^#[0-9a-fA-F]{3}$/.test(v)) v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+        if (!/^#[0-9a-fA-F]{6}$/.test(v)) { hx.value = String(S.ringColors[i]).toUpperCase(); return; }
+        put(v);
+      };
+      hx.onchange = takeHex;
+      hx.onkeydown = (ev) => { if (ev.key === 'Enter') { takeHex(); hx.blur(); } };
+
+      // the swatch is the grip; the hex box has to stay typeable
+      inp.onpointerdown = (ev) => beginChipDrag(box, i, ev);
+      hx.onpointerdown = (ev) => ev.stopPropagation();
+
       const del = U.el('button', 'x', '×');
       del.type = 'button';
       del.onpointerdown = (ev) => ev.stopPropagation();     // the × is not a handle
@@ -608,6 +619,7 @@
       };
       w.appendChild(inp);
       w.appendChild(del);
+      w.appendChild(hx);
       row.appendChild(w);
     });
     const add = U.el('button', 'chip add', '+');
@@ -759,11 +771,6 @@
 
   /* ---------------- reactions ---------------- */
   function onChange(it) {
-    if (it.k === 'palettePreset') {
-      const p = PALETTES[S.palettePreset];
-      if (p) { S.bg = p.bg; S.ringColors = p.rings.slice(); S.inkColor = p.ink; }
-      S.palettePreset = '';
-    }
     if (it.k === 'sizePreset' && S.sizePreset !== 'custom') {
       const p = SIZE_PRESETS[S.sizePreset];
       if (p) { S.units = p.units; S.cw = p.cw; S.ch = p.ch; S.dpi = p.dpi; }

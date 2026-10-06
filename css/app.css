@@ -208,11 +208,17 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:4px}
 
 /* ---------- palette editor ---------- */
 .pal{margin-top:6px}
-.chiprow{display:flex; flex-wrap:wrap; gap:6px}
-.chip{position:relative; width:40px; height:26px; cursor:grab; touch-action:none}
-.chip input[type=color]{width:100%; height:100%}
+.chiprow{display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start}
+.chip{position:relative; width:49px}
+.chip .sw{width:100%; height:26px; cursor:grab; touch-action:none}
+.chip .hx{
+  width:100%; margin-top:3px; padding:2px 0;
+  font-family:var(--mono); font-size:9px; letter-spacing:-.2px;
+  text-align:center; text-transform:uppercase;
+}
 .pal.dragging{cursor:grabbing}
-.pal.dragging .chip{cursor:grabbing; transition:transform .12s ease}
+.pal.dragging .chip .sw{cursor:grabbing}
+.pal.dragging .chip{transition:transform .12s ease}
 .chip.held{opacity:.5; transform:scale(1.08)}
 .chip.held .x{display:none}
 
@@ -236,7 +242,7 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:4px}
 .chip .x:hover{background:var(--red); border-color:var(--red); color:var(--ink)}
 .chip:hover .x{display:block}
 .chip.add{
-  width:30px; height:26px; border:1px dashed var(--line-2); border-radius:7px;
+  width:34px; height:26px; border:1px dashed var(--line-2); border-radius:7px;
   background:none; color:var(--ink-3); font-size:15px; cursor:pointer; line-height:1;
 }
 .chip.add:hover{color:var(--teal-t); border-color:var(--teal); border-style:solid}
