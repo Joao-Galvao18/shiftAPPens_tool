@@ -18,9 +18,13 @@
     'sticker': { units: 'mm', cw: 100, ch: 100, dpi: 300 }
   };
 
+  /* The project palette. These are the colours the UI itself is built from, so
+     they are one click away when you are colouring the artwork too. */
+  const BRAND = ['#DF48B6', '#FFEA00', '#FE593B', '#32C4BA', '#039545', '#1A2321', '#FFFBF8'];
+
   const PALETTES = {
-    'shift-yellow': { bg: '#FFD400', rings: ['#16A9A0', '#1E9B57'], ink: '#FFFFFF' },
-    'shift-cream': { bg: '#FBF6EA', rings: ['#FFD400', '#16A9A0'], ink: '#E8492B' },
+    'shift-yellow': { bg: '#FFEA00', rings: ['#32C4BA', '#039545'], ink: '#1A2321' },
+    'shift-cream': { bg: '#FFFBF8', rings: ['#FFEA00', '#32C4BA'], ink: '#FE593B' },
     'acid': { bg: '#0B0B0B', rings: ['#C6FF00', '#00E5FF', '#FF2D95'], ink: '#FFFFFF' },
     'risograph': { bg: '#F3EFE6', rings: ['#FF4B33', '#0050FF'], ink: '#111111' },
     'mono': { bg: '#FFFFFF', rings: ['#000000'], ink: '#000000' },
@@ -65,7 +69,7 @@
       lang: 'en', tab: 'strokes', canvasOpen: true,
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
-      basis: 'short', previewQuality: 1200, bg: '#FFD400',
+      basis: 'short', previewQuality: 1200, bg: '#FFEA00',
       // placement
       fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
@@ -74,7 +78,7 @@
       maskSmooth: 0.8, maskExpand: 0,
       // strokes
       ringCount: 4, strokeW: 2.4, ringGap: 0, ringOffset: 1.6, ringGrowth: 1,
-      ringColors: ['#16A9A0', '#1E9B57'],
+      ringColors: ['#32C4BA', '#039545'],
       gapUseBg: true, gapColor: '#ffffff',
       haloUseBg: true, haloColor: '#ffffff',
       fillUseBg: true, fillColor: '#ffffff',
@@ -89,7 +93,7 @@
       crispPixels: true, artClip: false, inkOn: 'dark', inkColor: '#FFFFFF',
       paperColor: '#000000', paperTransparent: true,
       // drawing
-      paint: [], brushColor: '#DB6AC3', brushWidth: 1.6, brushType: 'scribble',
+      paint: [], brushColor: '#DF48B6', brushWidth: 1.6, brushType: 'scribble',
       // grain
       grainAmount: 0, grainScale: 0.2, grainMono: true,
       // animation
@@ -509,10 +513,80 @@
     return row;
   }
 
+  /* The chips are a colour AND an order: stroke 1 takes the first chip, stroke 2
+     the second, and the list cycles. So moving a chip along the row changes which
+     band it paints, which is why they can be dragged.
+
+     One chip has to serve both jobs. A press that stays put opens the colour
+     picker as before; a press that travels more than a few pixels is a drag, and
+     the click that follows it is swallowed so the picker does not also open. */
+  let chipDrag = null;
+
+  function chipIndexAt(box, x, y) {
+    const chips = [...box.querySelectorAll('.chip:not(.add)')];
+    let best = -1, bd = Infinity;
+    chips.forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      const dx = x - (r.left + r.width / 2);
+      const dy = y - (r.top + r.height / 2);
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+
+  function beginChipDrag(box, i, ev) {
+    if (ev.button != null && ev.button !== 0) return;
+    chipDrag = { box: box, from: i, at: i, x: ev.clientX, y: ev.clientY, moved: false };
+    try { box.setPointerCapture(ev.pointerId); } catch (e) { /* capture is a nicety */ }
+    chipDrag.id = ev.pointerId;
+  }
+
+  function moveChipDrag(ev) {
+    const d = chipDrag;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(ev.clientX - d.x) + Math.abs(ev.clientY - d.y) < 5) return;   // still a click
+      d.moved = true;
+      d.box.classList.add('dragging');
+    }
+    ev.preventDefault();
+    const to = chipIndexAt(d.box, ev.clientX, ev.clientY);
+    if (to < 0 || to === d.at) return;
+    S.ringColors.splice(to, 0, S.ringColors.splice(d.at, 1)[0]);
+    d.at = to;
+    renderPalette(d.box);
+    scheduleRender();
+  }
+
+  function endChipDrag(ev) {
+    const d = chipDrag;
+    if (!d) return;
+    chipDrag = null;
+    try { d.box.releasePointerCapture(d.id); } catch (e) { /* already gone */ }
+    d.box.classList.remove('dragging');
+    if (!d.moved) return;                     // a plain click: let the picker open
+    // the click that follows this pointerup would open the picker of whatever
+    // chip landed under the cursor, which is not what the drag asked for
+    const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
+    d.box.addEventListener('click', swallow, true);
+    setTimeout(() => d.box.removeEventListener('click', swallow, true), 0);
+    if (d.from !== d.at) save();
+    renderPalette(d.box);
+  }
+
   function renderPalette(box) {
     box.innerHTML = '';
+    if (!box._wired) {
+      box.addEventListener('pointermove', moveChipDrag);
+      box.addEventListener('pointerup', endChipDrag);
+      box.addEventListener('pointercancel', endChipDrag);
+      box._wired = true;
+    }
+
+    const row = U.el('div', 'chiprow');
     S.ringColors.forEach((c, i) => {
-      const w = U.el('div', 'chip');
+      const w = U.el('div', 'chip' + (chipDrag && chipDrag.at === i ? ' held' : ''));
       const inp = U.el('input');
       inp.type = 'color';
       inp.value = c;
@@ -522,8 +596,10 @@
         inp.title = inp.value.toUpperCase();
         scheduleRender(); save();
       };
+      w.onpointerdown = (ev) => beginChipDrag(box, i, ev);
       const del = U.el('button', 'x', '×');
       del.type = 'button';
+      del.onpointerdown = (ev) => ev.stopPropagation();     // the × is not a handle
       del.onclick = () => {
         if (S.ringColors.length <= 1) return;
         S.ringColors.splice(i, 1);
@@ -532,7 +608,7 @@
       };
       w.appendChild(inp);
       w.appendChild(del);
-      box.appendChild(w);
+      row.appendChild(w);
     });
     const add = U.el('button', 'chip add', '+');
     add.type = 'button';
@@ -541,7 +617,21 @@
       renderPalette(box);
       scheduleRender(); save();
     };
-    box.appendChild(add);
+    row.appendChild(add);
+    box.appendChild(row);
+
+    const brand = U.el('div', 'brandrow');
+    brand.appendChild(U.el('span', 'brandcap', t('ui.brandRow')));
+    BRAND.forEach(c => {
+      const b = U.el('button', 'brandchip');
+      b.type = 'button';
+      b.style.background = c;
+      b.title = c;
+      b.setAttribute('aria-label', c);
+      b.onclick = () => { S.ringColors.push(c); renderPalette(box); scheduleRender(); save(); };
+      brand.appendChild(b);
+    });
+    box.appendChild(brand);
   }
 
   function renderPresets(box) {
@@ -1002,7 +1092,7 @@
     for (const p of cs) {
       x.fillStyle = '#fff';
       x.fillRect(p.x - h, p.y - h, h * 2, h * 2);
-      x.strokeStyle = '#1CAEA6';
+      x.strokeStyle = '#32C4BA';
       x.lineWidth = 1.5 * k;
       x.strokeRect(p.x - h, p.y - h, h * 2, h * 2);
     }

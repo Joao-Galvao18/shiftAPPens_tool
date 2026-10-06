@@ -37,14 +37,14 @@
       by: null,
       at: '',
       settings: {
-        bg: '#F4492E',
+        bg: '#FE593B',
         ringCount: 5,
         strokeW: 2,
         ringGap: 0,
         ringOffset: 0,
         ringGrowth: 1,
         innerRings: 0,
-        ringColors: ['#1CAEA6', '#FBDF00'],   // cycles over the 5 strokes
+        ringColors: ['#32C4BA', '#FFEA00'],   // cycles over the 5 strokes
         gapUseBg: true, gapColor: '#ffffff',
         haloUseBg: true, haloColor: '#ffffff',
         fillUseBg: true, fillColor: '#ffffff',

@@ -1,6 +1,6 @@
 /* Light, roomy UI on the project palette.
 
-   None of the five palette colours passes 4.5:1 as text on white, so they are
+   None of the five accent colours passes 4.5:1 as text on the paper, so they are
    used at full strength as FILLS with dark text on top, and the -t variants are
    the same hue darkened to 4.5:1 wherever a colour has to be small text.
 
@@ -10,22 +10,26 @@
      pink    the live pixel values, and whatever is currently active
      green   confirmation
      red     destructive
+
+   The paper and the ink are the palette's own off-white and near-black, and the
+   greys between them are mixes of the two rather than neutral greys, so the
+   whole surface sits in one family.
 */
 :root{
-  --paper:#FFFFFF;
-  --ground:#F5F6F7;
-  --sunken:#E9ECED;
-  --line:#E7EAEB;
-  --line-2:#D3D8D9;
-  --ink:#14181A;
-  --ink-2:#596164;
-  --ink-3:#8C9497;
+  --paper:#FFFBF8;
+  --ground:#F5F1EE;
+  --sunken:#E8E5E2;
+  --line:#ECE9E6;
+  --line-2:#D3D2CF;
+  --ink:#1A2321;
+  --ink-2:#717573;
+  --ink-3:#989A97;
 
-  --yellow:#FBDF00;
-  --pink:#DB6AC3;   --pink-t:#CD32AC;
-  --red:#F4492E;    --red-t:#E52A0C;
-  --green:#22945A;  --green-t:#1F8752;
-  --teal:#1CAEA6;   --teal-t:#15847E;
+  --yellow:#FFEA00;  --yellow-t:#817600;
+  --pink:#DF48B6;   --pink-t:#D225A3;
+  --red:#FE593B;    --red-t:#E32401;
+  --green:#039545;  --green-t:#03873E;
+  --teal:#32C4BA;   --teal-t:#21827B;
 
   --side:344px;
   --r:10px;
@@ -182,7 +186,7 @@ input[type=checkbox]::after{
   border-radius:50%; background:var(--paper);
   box-shadow:0 1px 3px rgba(20,24,26,.28); transition:transform .16s;
 }
-input[type=checkbox]:hover{background:#DDE1E2}
+input[type=checkbox]:hover{background:#E3E0DD}
 input[type=checkbox]:checked{background:var(--teal)}
 input[type=checkbox]:checked:hover{background:var(--teal-t)}
 input[type=checkbox]:checked::after{transform:translateX(14px)}
@@ -203,15 +207,33 @@ input[type=color]::-webkit-color-swatch{border:0; border-radius:4px}
 input[type=color]::-moz-color-swatch{border:0; border-radius:4px}
 
 /* ---------- palette editor ---------- */
-.pal{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
-.chip{position:relative; width:40px; height:26px}
+.pal{margin-top:6px}
+.chiprow{display:flex; flex-wrap:wrap; gap:6px}
+.chip{position:relative; width:40px; height:26px; cursor:grab; touch-action:none}
 .chip input[type=color]{width:100%; height:100%}
+.pal.dragging{cursor:grabbing}
+.pal.dragging .chip{cursor:grabbing; transition:transform .12s ease}
+.chip.held{opacity:.5; transform:scale(1.08)}
+.chip.held .x{display:none}
+
+/* the project palette, one click from the artwork */
+.brandrow{display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:9px}
+.brandcap{
+  color:var(--ink-3); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  margin-right:2px;
+}
+.brandchip{
+  width:19px; height:19px; border-radius:5px; padding:0; cursor:pointer;
+  border:1px solid var(--line-2);
+}
+.brandchip:hover{transform:scale(1.14)}
+.brandchip:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
 .chip .x{
   position:absolute; top:-6px; right:-6px; width:16px; height:16px; line-height:13px;
   border-radius:50%; border:1px solid var(--line-2); background:var(--paper);
   color:var(--ink-2); font-size:11px; cursor:pointer; padding:0; display:none;
 }
-.chip .x:hover{background:var(--red); border-color:var(--red); color:#fff}
+.chip .x:hover{background:var(--red); border-color:var(--red); color:var(--ink)}
 .chip:hover .x{display:block}
 .chip.add{
   width:30px; height:26px; border:1px dashed var(--line-2); border-radius:7px;
@@ -327,9 +349,9 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:4px}
 .btn.primary:hover{filter:brightness(.95); background:var(--yellow); border-color:var(--yellow)}
 .btn.ghost{background:transparent; border-color:var(--line)}
 .btn.full{width:100%; margin-top:6px}
-.btn.active{background:var(--pink); border-color:var(--pink); color:#fff}
+.btn.active{background:var(--pink); border-color:var(--pink); color:var(--ink)}
 .btn.active:hover{background:var(--pink); border-color:var(--pink); filter:brightness(.95)}
-.btn.danger:hover{background:var(--red); border-color:var(--red); color:#fff}
+.btn.danger:hover{background:var(--red); border-color:var(--red); color:var(--ink)}
 
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 
