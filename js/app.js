@@ -527,18 +527,26 @@
 
   function beginChipDrag(box, i, ev) {
     if (ev.button != null && ev.button !== 0) return;
-    chipDrag = { box: box, from: i, at: i, x: ev.clientX, y: ev.clientY, moved: false };
-    try { box.setPointerCapture(ev.pointerId); } catch (e) { /* capture is a nicety */ }
-    chipDrag.id = ev.pointerId;
+    chipDrag = { box: box, from: i, at: i, x: ev.clientX, y: ev.clientY, moved: false, id: ev.pointerId };
+    // NOTE: no pointer capture here. A captured pointer sends the click that
+    // follows to the capture target instead of the swatch under the cursor, and
+    // the swatch is what opens the colour wheel — capturing on every press meant
+    // a plain click did nothing at all. The capture is taken below, only once
+    // the press has become a drag and the click is unwanted anyway.
   }
 
   function moveChipDrag(ev) {
     const d = chipDrag;
     if (!d) return;
     if (!d.moved) {
-      if (Math.abs(ev.clientX - d.x) + Math.abs(ev.clientY - d.y) < 5) return;   // still a click
+      // real distance, not |dx|+|dy| — the sum trips at 3px across and 3px down,
+      // which is ordinary hand tremor on a trackpad, not an attempt to drag
+      const dx = ev.clientX - d.x, dy = ev.clientY - d.y;
+      if (dx * dx + dy * dy < 64) return;        // under 8px: still a click
       d.moved = true;
       d.box.classList.add('dragging');
+      // now that it is a drag, keep the pointer even if it leaves the row
+      try { d.box.setPointerCapture(d.id); d.captured = true; } catch (e) { /* fine without */ }
     }
     ev.preventDefault();
     const to = chipIndexAt(d.box, ev.clientX, ev.clientY);
@@ -553,15 +561,26 @@
     const d = chipDrag;
     if (!d) return;
     chipDrag = null;
-    try { d.box.releasePointerCapture(d.id); } catch (e) { /* already gone */ }
+    if (d.captured) { try { d.box.releasePointerCapture(d.id); } catch (e) { /* already gone */ } }
     d.box.classList.remove('dragging');
-    if (!d.moved) return;                     // a plain click: let the picker open
-    // the click that follows this pointerup would open the picker of whatever
-    // chip landed under the cursor, which is not what the drag asked for
+    if (!d.moved) return;                     // never moved: the click opens the wheel
+
+    /* A press that wandered but put the chip back where it started is a click as
+       far as anyone is concerned, so it must still open the wheel. That means
+       swallowing nothing and — just as important — NOT re-rendering, since
+       rebuilding the row would destroy the very input the click is on its way to. */
+    if (d.from === d.at) {
+      const held = d.box.querySelector('.chip.held');
+      if (held) held.classList.remove('held');
+      return;
+    }
+
+    // the chip genuinely moved: the click that follows would open the wheel of
+    // whatever chip landed under the cursor, which is not what the drag asked for
     const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
     d.box.addEventListener('click', swallow, true);
     setTimeout(() => d.box.removeEventListener('click', swallow, true), 0);
-    if (d.from !== d.at) save();
+    save();
     renderPalette(d.box);
   }
 
