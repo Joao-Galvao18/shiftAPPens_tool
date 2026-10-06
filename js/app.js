@@ -577,36 +577,18 @@
     const row = U.el('div', 'chiprow');
     S.ringColors.forEach((c, i) => {
       const w = U.el('div', 'chip' + (chipDrag && chipDrag.at === i ? ' held' : ''));
+      /* The swatch is the whole chip: clicking it opens the system colour
+         wheel, which is where a code gets typed or a colour picked by eye. */
       const inp = U.el('input', 'sw');
       inp.type = 'color';
       inp.value = c;
-      const hx = U.el('input', 'hx');
-      hx.type = 'text';
-      hx.maxLength = 7;
-      hx.spellcheck = false;
-      hx.value = String(c).toUpperCase();
-      hx.setAttribute('aria-label', t('ui.brandRow') + ' ' + (i + 1));
-
-      const put = (v) => {
-        S.ringColors[i] = v;
-        inp.value = v;
-        hx.value = v.toUpperCase();
+      inp.title = String(c).toUpperCase();
+      inp.oninput = () => {
+        S.ringColors[i] = inp.value;
+        inp.title = inp.value.toUpperCase();
         scheduleRender(); save();
       };
-      inp.oninput = () => put(inp.value);
-      const takeHex = () => {
-        let v = hx.value.trim();
-        if (v && v[0] !== '#') v = '#' + v;
-        if (/^#[0-9a-fA-F]{3}$/.test(v)) v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
-        if (!/^#[0-9a-fA-F]{6}$/.test(v)) { hx.value = String(S.ringColors[i]).toUpperCase(); return; }
-        put(v);
-      };
-      hx.onchange = takeHex;
-      hx.onkeydown = (ev) => { if (ev.key === 'Enter') { takeHex(); hx.blur(); } };
-
-      // the swatch is the grip; the hex box has to stay typeable
-      inp.onpointerdown = (ev) => beginChipDrag(box, i, ev);
-      hx.onpointerdown = (ev) => ev.stopPropagation();
+      w.onpointerdown = (ev) => beginChipDrag(box, i, ev);
 
       const del = U.el('button', 'x', '×');
       del.type = 'button';
@@ -619,7 +601,6 @@
       };
       w.appendChild(inp);
       w.appendChild(del);
-      w.appendChild(hx);
       row.appendChild(w);
     });
     const add = U.el('button', 'chip add', '+');
