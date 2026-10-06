@@ -262,45 +262,72 @@
     return { mode: border > thr ? 'dark' : 'light', thr: thr };
   }
 
-  function buildMask(data, W, H, S, img) {
+  /* How much of each pixel the subject covers, 0..1.
+
+     A yes-or-no mask throws away the one thing an
+     anti-aliased picture knows best: where inside the pixel its edge actually
+     runs. A logo whose outline is a smooth ramp of alpha became a 1-bit
+     staircase before the distance field was even built, and every band traced
+     from that field inherited the staircase — which is the ripple you can see
+     along an exported outline.
+
+     Alpha IS coverage, so it is used directly, biased so the chosen threshold
+     lands at a half-covered pixel. A luminance split has no real coverage to
+     read, so it gets a narrow ramp around the threshold instead of a cliff. */
+  function buildCoverage(data, W, H, S, img, src, thr) {
     const n = W * H;
-    const m = new Float32Array(n);
-    let src = S.maskSource;
-    let thr = S.maskThreshold;
-    if (src === 'auto') {
-      if (hasAlpha(img)) {
-        src = 'alpha';
-      } else {
-        const a = autoSplit(data, W, H);
-        src = a.mode;
-        thr = a.thr;
-      }
-    }
+    const c = new Float32Array(n);
+    const bias = 0.5 - thr / 255;
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const a = data[p + 3];
       let v;
-      if (src === 'alpha') v = a > thr ? 1 : 0;
-      else {
+      if (src === 'alpha') {
+        v = a / 255 + bias;
+      } else {
         const lum = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
-        v = (src === 'dark' ? lum < thr : lum > thr) ? 1 : 0;
+        v = (src === 'dark' ? (thr - lum) : (lum - thr)) / 8 + 0.5;
         if (a < 128) v = 0;
+        else v = v * (a / 255);
       }
-      m[i] = v;
+      c[i] = v < 0 ? 0 : v > 1 ? 1 : v;
     }
-    if (S.maskInvert) for (let i = 0; i < n; i++) m[i] = 1 - m[i];
-    if (S.maskFillHoles) EDT.fillHoles(m, W, H);
-    return m;
+    if (S.maskInvert) for (let i = 0; i < n; i++) c[i] = 1 - c[i];
+    return c;
   }
 
   function buildSDF(data, W, H, S, unit, img) {
-    const m = buildMask(data, W, H, S, img);
-    const smooth = S.maskSmooth / 100 * unit;
-    if (smooth > 0.3) {
-      EDT.blur(m, W, H, smooth);
-      for (let i = 0; i < m.length; i++) m[i] = m[i] > 0.5 ? 1 : 0;
-      if (S.maskFillHoles) EDT.fillHoles(m, W, H);
+    let src = S.maskSource;
+    let thr = S.maskThreshold;
+    if (src === 'auto') {
+      if (hasAlpha(img)) src = 'alpha';
+      else { const a = autoSplit(data, W, H); src = a.mode; thr = a.thr; }
     }
-    return { sdf: EDT.signedDistance(m, W, H), mask: m };
+
+    const cov = buildCoverage(data, W, H, S, img, src, thr);
+    const smooth = S.maskSmooth / 100 * unit;
+    if (smooth > 0.3) EDT.blur(cov, W, H, smooth);   // stays soft: no re-thresholding
+
+    const n = W * H;
+    const bin = new Float32Array(n);
+    for (let i = 0; i < n; i++) bin[i] = cov[i] > 0.5 ? 1 : 0;
+    if (S.maskFillHoles) EDT.fillHoles(bin, W, H);
+
+    const sdf = EDT.signedDistance(bin, W, H);
+
+    /* A distance transform of a 1-bit mask measures centre to centre, so the
+       field steps from -1 straight to +1 and never passes through zero: its
+       level sets are stairs. Where a pixel is partly covered the coverage says
+       exactly where the edge sits inside it — a pixel 70% covered has its edge
+       0.2 of a pixel inside the centre — so near the boundary the measured
+       distance is replaced by that. Everything further out keeps the true
+       Euclidean distance, now anchored to an edge that is no longer a staircase. */
+    for (let i = 0; i < n; i++) {
+      if (sdf[i] > -1.5 && sdf[i] < 1.5) {
+        const c = cov[i];
+        if (c > 0 && c < 1) sdf[i] = 0.5 - c;
+      }
+    }
+    return { sdf: sdf, mask: cov };
   }
 
   /* ---------- 3. ring lookup table ----------
@@ -695,7 +722,12 @@
 
   /* ---------- 8. SVG export: rings become real vector paths ---------- */
   function toSVG(S, img, W, H, token, res) {
-    const k = Math.min(1, res / Math.max(W, H));
+    /* The trace used to be capped at the canvas's own resolution, so asking for
+       more detail did nothing once the canvas was already large. It may now go
+       finer than the canvas — that is the whole point of the control — which
+       shrinks the grid the contour is sampled on and with it any remaining
+       stepping. */
+    const k = U.clamp(res / Math.max(W, H), 0.25, 4);
     const rw = Math.max(64, Math.round(W * k));
     const rh = Math.max(64, Math.round(H * k));
     const runit = computeUnit(S.basis, rw, rh);
@@ -733,17 +765,24 @@
     for (let i = 0; i < bands.length; i++) push(bands[i].e, bands[i].s, cols[i % cols.length]);
     push(0, null, S.fillUseBg ? S.bg : S.fillColor);
 
-    // artwork stays raster (keeps photographic detail) but at full export resolution
-    const fFull = field(S, img, W, H, token);
-    const art = buildArt(fFull.placed, fFull.mask, W, H, S, computeUnit(S.basis, W, H));
+    /* The artwork cannot be vector — it is a photograph, or a bitmap logo — but
+       it must not be a 1:1 raster either. Embedded at exactly the canvas size it
+       is pin sharp at 100% and pixelates the moment anyone zooms in or prints it
+       larger, which defeats the one format whose whole point is scaling. It is
+       carried at whatever detail the trace is using instead, so "SVG detail"
+       governs the strokes and the picture together. */
+    const ka = U.clamp(res / Math.max(W, H), 1, 4);
+    const aw = Math.max(1, Math.round(W * ka)), ah = Math.max(1, Math.round(H * ka));
+    const fArt = ka === 1 ? field(S, img, W, H, token) : field(S, img, aw, ah, token + '#art');
+    const art = buildArt(fArt.placed, fArt.mask, aw, ah, S, computeUnit(S.basis, aw, ah));
     if (art) {
       parts.push('<image x="0" y="0" width="' + W + '" height="' + H + '" opacity="' +
         (S.artOpacity / 100) + '" xlink:href="' + art.toDataURL('image/png') + '"/>');
     }
 
     if (S.paint && S.paint.length) {
-      const pc = U.createCanvas(W, H);
-      Paint.render(pc.getContext('2d'), S.paint, W, H, computeUnit(S.basis, W, H));
+      const pc = U.createCanvas(aw, ah);
+      Paint.render(pc.getContext('2d'), S.paint, aw, ah, computeUnit(S.basis, aw, ah));
       parts.push('<image x="0" y="0" width="' + W + '" height="' + H +
         '" xlink:href="' + pc.toDataURL('image/png') + '"/>');
     }

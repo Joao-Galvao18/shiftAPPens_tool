@@ -102,17 +102,84 @@
     return out;
   }
 
-  /* loops -> SVG path data, mapped from grid space to canvas space */
-  function toPath(loops, sx, sy, ox, oy, eps, prec) {
+  /* loops -> SVG path data, mapped from grid space to canvas space.
+
+     Marching squares gives a polygon, and a polygon drawn at poster size shows
+     every one of its corners. The points are kept — the curve passes exactly
+     through them — but the joins between them are turned into cubic segments
+     with Catmull-Rom tangents, so a traced outline reads as a drawn one.
+
+     A real corner has to survive, or a logo's square edges would melt. Where the
+     direction changes by more than `corner`, the tangents are dropped on that
+     side and the join stays sharp. */
+  const CORNER = Math.cos(60 * Math.PI / 180);
+
+  function toPath(loops, sx, sy, ox, oy, eps, prec, smoothCurves) {
     const d = [];
     const P = prec == null ? 2 : prec;
+    const smooth = smoothCurves !== false;
+
     for (let loop of loops) {
       loop = simplify(loop, eps);
-      if (loop.length < 3) continue;
-      let s = 'M';
-      for (let i = 0; i < loop.length; i++) {
-        const x = (loop[i][0] - ox) * sx, y = (loop[i][1] - oy) * sy;
-        s += (i ? 'L' : '') + x.toFixed(P) + ' ' + y.toFixed(P);
+      const n = loop.length;
+      if (n < 3) continue;
+
+      const X = new Float64Array(n), Y = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        X[i] = (loop[i][0] - ox) * sx;
+        Y[i] = (loop[i][1] - oy) * sy;
+      }
+
+      if (!smooth) {
+        let s = 'M' + X[0].toFixed(P) + ' ' + Y[0].toFixed(P);
+        for (let i = 1; i < n; i++) s += 'L' + X[i].toFixed(P) + ' ' + Y[i].toFixed(P);
+        d.push(s + 'Z');
+        continue;
+      }
+
+      // is the turn at vertex i gentle enough to carry a tangent through it?
+      const soft = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        const a = (i - 1 + n) % n, b = (i + 1) % n;
+        const ux = X[i] - X[a], uy = Y[i] - Y[a];
+        const vx = X[b] - X[i], vy = Y[b] - Y[i];
+        const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+        soft[i] = (lu > 1e-9 && lv > 1e-9 && (ux * vx + uy * vy) / (lu * lv) > CORNER) ? 1 : 0;
+      }
+
+      const seg = (a, b) => Math.hypot(X[b] - X[a], Y[b] - Y[a]);
+
+      /* A tangent is built from the chord between a point's NEIGHBOURS, which
+         after simplification can be a long way off. Left unchecked, a gentle
+         turn at the end of a long straight run gets a tangent as long as that
+         run and the curve bows far outside the outline it is meant to trace —
+         a traced square came out 36px oversize on every side. Each tangent is
+         held to a third of the shorter segment it joins, which is the usual
+         guard against that overshoot and leaves genuine curves untouched. */
+      const hold = (tx, ty, la, lb) => {
+        const m = Math.min(la, lb) / 3;
+        const l = Math.hypot(tx, ty);
+        return (l > m && l > 1e-9) ? [tx * m / l, ty * m / l] : [tx, ty];
+      };
+
+      let s = 'M' + X[0].toFixed(P) + ' ' + Y[0].toFixed(P);
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const h = (i - 1 + n) % n, k = (j + 1) % n;
+        // tangents, dropped at whichever end is a corner
+        let t1x = soft[i] ? (X[j] - X[h]) / 6 : 0;
+        let t1y = soft[i] ? (Y[j] - Y[h]) / 6 : 0;
+        let t2x = soft[j] ? (X[k] - X[i]) / 6 : 0;
+        let t2y = soft[j] ? (Y[k] - Y[i]) / 6 : 0;
+        if (t1x || t1y) { const r = hold(t1x, t1y, seg(h, i), seg(i, j)); t1x = r[0]; t1y = r[1]; }
+        if (t2x || t2y) { const r = hold(t2x, t2y, seg(i, j), seg(j, k)); t2x = r[0]; t2y = r[1]; }
+        if (!t1x && !t1y && !t2x && !t2y) {
+          s += 'L' + X[j].toFixed(P) + ' ' + Y[j].toFixed(P);
+        } else {
+          s += 'C' + (X[i] + t1x).toFixed(P) + ' ' + (Y[i] + t1y).toFixed(P) + ' ' +
+                     (X[j] - t2x).toFixed(P) + ' ' + (Y[j] - t2y).toFixed(P) + ' ' +
+                     X[j].toFixed(P) + ' ' + Y[j].toFixed(P);
+        }
       }
       d.push(s + 'Z');
     }

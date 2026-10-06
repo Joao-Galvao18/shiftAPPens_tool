@@ -97,7 +97,7 @@
       animFps: 60, animQuality: 'high',
       animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
       // output
-      seed: 7, svgSimplify: 0.5, svgRes: 1800, exportScale: 1
+      seed: 7, svgSimplify: 0.35, svgRes: 2600, exportScale: 1
     };
   }
 
@@ -324,7 +324,7 @@
         },
         {
           id: 'vector', items: [
-            { k: 'svgRes', t: 'range', min: 400, max: 4000, step: 100, u: 'px', hint: true },
+            { k: 'svgRes', t: 'range', min: 600, max: 8000, step: 100, u: 'px', hint: true },
             { k: 'svgSimplify', t: 'range', min: 0, max: 3, step: 0.05 },
             { k: 'exportSvg', t: 'button', act: 'exportSvg' }
           ]
