@@ -1,11 +1,11 @@
 /* app.css — the project palette, wearing Moscow 1980.
 
-   The identity borrows three things from Arsentyev's mark and the posters built
-   around it: converging vertical tracks that splay as they rise, a five-pointed
-   star, and headings set tight, condensed and upper case. Those tracks turn out
-   to be the same idea as this tool's own offset strokes — parallel lines
-   repeating outward from a shape — so they are used wherever something needs
-   emphasis: under a section title, behind the active rail entry, along a slider.
+   The identity borrows two things from Arsentyev's mark and the posters built
+   around it: converging vertical tracks that splay as they rise, and headings
+   set tight, condensed and upper case. Those tracks turn out to be the same idea
+   as this tool's own offset strokes — parallel lines repeating outward from a
+   shape — so they are used wherever something needs emphasis: under a section
+   title, behind the active rail entry, along a slider.
 
    The colours are unchanged. The rail takes the palette's near-black so the
    bright accents have something to sit against, the way those posters work.
@@ -58,16 +58,9 @@ body{
   width:var(--rail); flex:0 0 var(--rail);
   background:var(--ink); color:var(--paper);
   display:flex; flex-direction:column; align-items:center;
-  padding:14px 0 18px; gap:4px; overflow-y:auto; overflow-x:hidden;
+  padding:10px 0 18px; gap:4px; overflow-y:auto; overflow-x:hidden;
 }
 #rail::-webkit-scrollbar{width:0}
-
-.mark{width:40px; height:44px; margin-bottom:14px; flex:none}
-.mark svg{width:100%; height:100%; fill:none}
-.mark .star{fill:var(--yellow)}
-.mark .tracks path{stroke:var(--paper); stroke-width:2.1; stroke-linecap:round}
-.mark .tracks path:nth-child(1){stroke:var(--teal)}
-.mark .ground{stroke:var(--red); stroke-width:2.4; stroke-linecap:round}
 
 #railItems{display:flex; flex-direction:column; align-items:stretch; width:100%; gap:2px}
 
@@ -377,7 +370,6 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
   body{overflow:auto}
   #rail{width:100%; flex:none; flex-direction:row; flex-wrap:wrap; justify-content:flex-start;
     padding:8px 10px; gap:2px}
-  .mark{margin:0 10px 0 2px; width:30px; height:33px}
   #railItems{flex-direction:row; width:auto; flex-wrap:wrap}
   .railRule{width:1px; height:28px; margin:6px 8px; align-self:center}
   .railBtn{flex-direction:row; gap:7px; padding:8px 11px; margin:0}
