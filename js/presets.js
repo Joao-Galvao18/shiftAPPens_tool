@@ -45,9 +45,11 @@
         ringGrowth: 1,
         innerRings: 0,
         ringColors: ['#32C4BA', '#FFEA00'],   // cycles over the 5 strokes
-        gapUseBg: true, gapColor: '#ffffff',
-        haloUseBg: true, haloColor: '#ffffff',
-        fillUseBg: true, fillColor: '#ffffff',
+        // all three follow the background, so these only show if you switch one
+        // off — and then it should be the palette's paper, not pure white
+        gapUseBg: true, gapColor: '#FFFBF8',
+        haloUseBg: true, haloColor: '#FFFBF8',
+        fillUseBg: true, fillColor: '#FFFBF8',
         aa: true,
         maskSource: 'auto', maskThreshold: 160, maskSmooth: 0.8,
         maskExpand: 0, maskFillHoles: true, maskInvert: false
