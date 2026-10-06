@@ -193,12 +193,89 @@
     return found;
   }
 
+  /* Choose a silhouette source from the picture itself.
+
+     `auto` used to be a straight synonym for `alpha`, which meant an ordinary
+     photograph — every pixel fully opaque — came back as a silhouette covering
+     the entire frame. The strokes then wrapped the rectangle or fell off the
+     canvas altogether, and the tool looked broken on any image that was not
+     already a cut-out.
+
+     A picture that carries real transparency is still read from its alpha. One
+     that does not is split by brightness instead, at a threshold found in its
+     own histogram rather than assumed, with the polarity decided by the border
+     of the picture — nearly always the ground the subject stands on. Only
+     opaque pixels are considered, so the transparent margin the placement adds
+     never votes. */
+  function autoSplit(data, W, H) {
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0, i = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, i++) {
+        if (data[i * 4 + 3] > 128) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < x0 || y1 < y0) return { mode: 'dark', thr: 128 };
+
+    const hist = new Float64Array(256);
+    let total = 0;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const p = (y * W + x) * 4;
+        if (data[p + 3] <= 128) continue;
+        hist[(0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) | 0]++;
+        total++;
+      }
+    }
+    if (!total) return { mode: 'dark', thr: 128 };
+
+    // Otsu: the cut that best separates the picture into two groups
+    let sum = 0;
+    for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sumB = 0, wB = 0, best = -1, thr = 128;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t];
+      if (!wB) continue;
+      const wF = total - wB;
+      if (wF <= 0) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB, mF = (sum - sumB) / wF;
+      const between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > best) { best = between; thr = t; }
+    }
+
+    // the edge of the picture tells us which side of that cut is the ground
+    let bs = 0, bn = 0;
+    const take = (x, y) => {
+      const p = (y * W + x) * 4;
+      if (data[p + 3] <= 128) return;
+      bs += 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+      bn++;
+    };
+    for (let x = x0; x <= x1; x++) { take(x, y0); take(x, y1); }
+    for (let y = y0; y <= y1; y++) { take(x0, y); take(x1, y); }
+    const border = bn ? bs / bn : 255;
+    return { mode: border > thr ? 'dark' : 'light', thr: thr };
+  }
+
   function buildMask(data, W, H, S, img) {
     const n = W * H;
     const m = new Float32Array(n);
     let src = S.maskSource;
-    if (src === 'auto') src = 'alpha';
-    const thr = S.maskThreshold;
+    let thr = S.maskThreshold;
+    if (src === 'auto') {
+      if (hasAlpha(img)) {
+        src = 'alpha';
+      } else {
+        const a = autoSplit(data, W, H);
+        src = a.mode;
+        thr = a.thr;
+      }
+    }
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const a = data[p + 3];
       let v;

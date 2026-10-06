@@ -61,7 +61,7 @@
 
   function defaults() {
     return {
-      lang: 'en', tab: 'strokes', closedGroups: {},
+      rev: 2, lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
       basis: 'short', previewQuality: 2600, bg: '#FFEA00',

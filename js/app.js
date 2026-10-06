@@ -483,12 +483,35 @@
   }
 
   function load() {
+    let storedRev = 0;
     try {
       const raw = localStorage.getItem('offset.settings');
-      if (raw) S = Object.assign(Schema.defaults(), JSON.parse(raw));
+      if (raw) {
+        const o = JSON.parse(raw);
+        // read the revision from what was STORED, not from the merge: the merge
+        // fills it in from the defaults, so a check made afterwards always
+        // believes the settings are current and no migration ever runs
+        storedRev = +o.rev || 0;
+        S = Object.assign(Schema.defaults(), o);
+      }
     } catch (e) { /* ignore */ }
     if (!S.closedGroups || typeof S.closedGroups !== 'object') S.closedGroups = {};
     if (!Schema.SECTIONS.some(x => x.id === S.tab)) S.tab = 'strokes';
+    migrate(storedRev);
+  }
+
+  /* Settings persist, which means a default that changes never reaches anyone
+     who has used the tool before — their stored copy wins. Raising the preview
+     ceiling did nothing at all for them until this ran. */
+  function migrate(storedRev) {
+    const d = Schema.defaults();
+    if (storedRev < 2) {
+      // 1200 was the old ceiling, and it magnified the artboard on any large
+      // display. A value at or below it is the old default, not a preference.
+      if (!(+S.previewQuality > 1200)) S.previewQuality = d.previewQuality;
+    }
+    S.rev = d.rev;
+    save();
   }
 
   function setLang(l) {
