@@ -640,6 +640,31 @@
       S.maskSource, S.maskThreshold, S.maskInvert, S.maskFillHoles, S.maskSmooth, token].join('|');
   }
 
+  /* Everything the artwork needs and nothing it does not.
+
+     buildArt only ever reads the placed picture and the coverage mask, but it
+     used to be handed a full field — which runs the distance transform, and
+     that is two more full-resolution arrays plus the pair it works in. At the
+     resolutions the SVG embeds a picture at, that was most of the memory the
+     export used, computed and thrown away. */
+  function artField(S, img, W, H, token) {
+    const unit = computeUnit(S.basis, W, H);
+    const src = preparedSource(img, S, token);
+    const placed = placeImage(src, W, H, S, unit);
+    const data = placed.getContext('2d').getImageData(0, 0, W, H).data;
+
+    let msrc = S.maskSource;
+    let thr = S.maskThreshold;
+    if (msrc === 'auto') {
+      if (hasAlpha(src)) msrc = 'alpha';
+      else { const a = autoSplit(data, W, H); msrc = a.mode; thr = a.thr; }
+    }
+    const cov = buildCoverage(data, W, H, S, src, msrc, thr);
+    const smooth = S.maskSmooth / 100 * unit;
+    if (smooth > 0.3) EDT.blur(cov, W, H, smooth);
+    return { placed: placed, mask: cov };
+  }
+
   function field(S, img, W, H, token) {
     const key = fieldKey(S, W, H, token);
     if (cache.key === key) return cache.val;
@@ -721,13 +746,29 @@
   }
 
   /* ---------- 8. SVG export: rings become real vector paths ---------- */
+  /* A distance field needs several full-resolution Float32Arrays, so the grid it
+     is computed on — not the canvas — is what decides whether a trace fits in
+     memory. Six arrays of four bytes a cell are live at the peak, so twelve
+     million cells is already about 290MB, and that is on top of whatever else
+     the machine is doing. Detail is clamped to that however high it is set.
+
+     The embedded picture is allowed more, because a canvas and one copy of its
+     pixels is a third of what the field costs. */
+  const GRID_BUDGET = 12e6;
+  const ART_BUDGET = 12e6;
+
+  function fitGrid(W, H, k, budget) {
+    const px = W * H * k * k;
+    return px <= budget ? k : k * Math.sqrt(budget / px);
+  }
+
   function toSVG(S, img, W, H, token, res) {
     /* The trace used to be capped at the canvas's own resolution, so asking for
        more detail did nothing once the canvas was already large. It may now go
        finer than the canvas — that is the whole point of the control — which
        shrinks the grid the contour is sampled on and with it any remaining
        stepping. */
-    const k = U.clamp(res / Math.max(W, H), 0.25, 4);
+    const k = fitGrid(W, H, U.clamp(res / Math.max(W, H), 0.25, 4), GRID_BUDGET);
     const rw = Math.max(64, Math.round(W * k));
     const rh = Math.max(64, Math.round(H * k));
     const runit = computeUnit(S.basis, rw, rh);
@@ -771,9 +812,9 @@
        larger, which defeats the one format whose whole point is scaling. It is
        carried at whatever detail the trace is using instead, so "SVG detail"
        governs the strokes and the picture together. */
-    const ka = U.clamp(res / Math.max(W, H), 1, 4);
+    const ka = fitGrid(W, H, U.clamp(res / Math.max(W, H), 1, 4), ART_BUDGET);
     const aw = Math.max(1, Math.round(W * ka)), ah = Math.max(1, Math.round(H * ka));
-    const fArt = ka === 1 ? field(S, img, W, H, token) : field(S, img, aw, ah, token + '#art');
+    const fArt = ka === 1 ? field(S, img, W, H, token) : artField(S, img, aw, ah, token + '#art');
     const art = buildArt(fArt.placed, fArt.mask, aw, ah, S, computeUnit(S.basis, aw, ah));
     if (art) {
       parts.push('<image x="0" y="0" width="' + W + '" height="' + H + '" opacity="' +

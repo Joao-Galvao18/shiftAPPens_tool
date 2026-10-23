@@ -169,15 +169,38 @@
 
   /* ---------- exporting ---------- */
 
-  function frames(S, img, W, H, token, onStep) {
+  /* How much memory a run of frames would occupy if they were all alive at
+     once. Four bytes a pixel is what a canvas or an ImageBitmap costs, and none
+     of it lands on the JS heap where it would be easy to notice — it is native
+     memory, and running out of it takes the tab with it.
+
+     The budget is deliberately well under what a machine has: a browser is not
+     the only thing running, and a failed export that says why beats a tab that
+     disappears. */
+  const FRAME_BUDGET = 400 * 1048576;
+
+  function runBytes(W, H, n) { return W * H * 4 * n; }
+
+  function tooMuch(W, H, n) {
+    const need = runBytes(W, H, n);
+    if (need <= FRAME_BUDGET) return null;
+    return Math.round(need / 1048576);
+  }
+
+  /* Hand back one frame at a time instead of building the whole run.
+
+     This used to return an array of every rendered frame, which at the default
+     three seconds and sixty a second is 180 canvases — a gigabyte on an ordinary
+     canvas size, four at double scale. Each frame is now rendered, passed on and
+     dropped, so a long export costs the same as a short one. */
+  async function eachFrame(S, img, W, H, token, cb) {
     const n = frameCount(S);
     const rate = fps(S);
-    const out = [];
     for (let i = 0; i < n; i++) {
-      out.push(Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token));
-      if (onStep) onStep(i + 1, n);
+      const c = Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token);
+      await cb(c, i, n);
     }
-    return out;
+    return n;
   }
 
   /* GIF frame delays are whole hundredths of a second, so most rates are not
@@ -231,6 +254,19 @@
 
     const n = frameCount(S);
     const rate = fps(S);
+
+    /* MediaRecorder is paced by the wall clock, so the frames have to exist
+       before the recording starts — there is no way to hand it one at a time
+       without the video stretching by however long a render takes. That makes
+       this the one export whose cost grows with its length, so it is checked
+       against the budget first rather than taking the tab down. MP4 has no such
+       limit: WebCodecs encodes each frame as it arrives. */
+    const over = tooMuch(W, H, n);
+    if (over) {
+      throw new Error('WebM has to hold every frame at once, and this needs about ' +
+        over + 'MB — export MP4 instead, which encodes as it goes, or shorten it');
+    }
+
     const bmps = [];
     for (let i = 0; i < n; i++) {
       const c = Engine.render(frameSettings(S, phase(S, i, rate), W, H), img, W, H, token);
@@ -267,12 +303,15 @@
       ctx.drawImage(bmps[i], 0, 0);
       if (track.requestFrame) track.requestFrame();
       if (onStep) onStep(n + i + 1, n + n);
+      // done with it: let it go now rather than holding the whole run to the end
+      if (bmps[i].close) bmps[i].close();
+      bmps[i] = null;
       const due = t0 + (i + 1) * dt;
       await new Promise(r => setTimeout(r, Math.max(0, due - performance.now())));
     }
     rec.stop();
     await Promise.race([finished, new Promise(r => setTimeout(() => { settle(); r(); }, 4000))]);
-    bmps.forEach(b => b.close && b.close());
+    bmps.length = 0;
 
     const blob = new Blob(chunks, { type: mime });
     /* The recorder can come back with nothing in it — a throttled tab is the
@@ -345,7 +384,8 @@
     bitrate: bitrate,
     frameCount: frameCount,
     frameSettings: frameSettings,
-    frames: frames,
+    eachFrame: eachFrame,
+    tooMuch: tooMuch,
     gifRate: gifRate,
     gifFrameCount: gifFrameCount,
     toGIF: toGIF,

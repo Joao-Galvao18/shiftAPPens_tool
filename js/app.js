@@ -276,7 +276,13 @@
     const cap = performance.now() < draftUntil
       ? Math.min(+S.previewQuality, DRAFT_CAP) : +S.previewQuality;
     const target = U.clamp(shown, 320, Math.min(cap, long * 2));
-    const k = target / long;
+    let k = target / long;
+    /* A preview is rebuilt on every edit, so its grid is the one that decides
+       whether the tool feels light or eats the machine. Eight million cells is
+       about 200MB of field arrays — plenty for any display, and a ceiling the
+       quality setting cannot push past on a large canvas. */
+    const px = c.W * c.H * k * k;
+    if (px > 8e6) k *= Math.sqrt(8e6 / px);
     return { w: Math.max(2, Math.round(c.W * k)), h: Math.max(2, Math.round(c.H * k)) };
   }
 
@@ -478,8 +484,26 @@
 
   /* ---------------- persistence ---------------- */
 
+  let storageWarned = false;
+
   function save() {
-    try { localStorage.setItem('offset.settings', JSON.stringify(S)); } catch (e) { /* ignore */ }
+    try {
+      localStorage.setItem('offset.settings', JSON.stringify(S));
+    } catch (e) {
+      /* Almost always the quota, and almost always the drawing: a few hundred
+         brush strokes outgrow what a browser will store. Swallowing it meant
+         nothing was saved from then on — canvas, colours, the lot — with no
+         sign that anything was wrong. The drawing is dropped from what gets
+         written instead, so everything else survives the reload. */
+      try {
+        const lite = Object.assign({}, S, { paint: [] });
+        localStorage.setItem('offset.settings', JSON.stringify(lite));
+        if (!storageWarned) {
+          storageWarned = true;
+          status(t('ui.storageFull'), true);
+        }
+      } catch (e2) { /* nothing more to be done */ }
+    }
   }
 
   function load() {

@@ -15,7 +15,14 @@
 
   function init(c) { ctx = c; }
 
+  let lastOffered = null;
+
   function offerFile(blob, name, msg) {
+    /* Each of these pins a whole file in memory for as long as the link lives.
+       Exporting a few large animations in a row used to keep every one of them
+       alive for three minutes at once, so the previous file is released as soon
+       as a new one takes its place. */
+    if (lastOffered) { URL.revokeObjectURL(lastOffered.url); clearTimeout(lastOffered.timer); }
     const url = URL.createObjectURL(blob);
     const bar = document.querySelector('#status');
     bar.className = '';
@@ -34,7 +41,7 @@
     auto.remove();
 
     // keep the object alive long enough for the manual link to be used
-    setTimeout(() => URL.revokeObjectURL(url), 180000);
+    lastOffered = { url: url, timer: setTimeout(() => { URL.revokeObjectURL(url); lastOffered = null; }, 180000) };
   }
 
   function png() {
@@ -84,13 +91,14 @@
       if (S().animFormat === 'png') {
         if (n > 40 && !confirm(t('ui.animManyFrames', n))) return;
         ctx.status(t('ui.animProgress', 0));
-        const list = Anim.frames(S(), ctx.IMG, W, H, ctx.TOKEN, step);
-        for (let i = 0; i < list.length; i++) {
-          const blob = await new Promise(r => list[i].toBlob(r, 'image/png'));
+        // one frame at a time: written out and dropped before the next is drawn
+        const saved = await Anim.eachFrame(S(), ctx.IMG, W, H, ctx.TOKEN, async (canvas, i, total) => {
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
           U.download(blob, 'stroke-' + stamp + '-' + String(i + 1).padStart(3, '0') + '.png');
+          step(i + 1, total);
           await new Promise(r => setTimeout(r, 120));   // browsers throttle bursts
-        }
-        ctx.status(t('ui.animSavedFrames', list.length));
+        });
+        ctx.status(t('ui.animSavedFrames', saved));
         return;
       }
       if (S().animFormat === 'mp4') {
