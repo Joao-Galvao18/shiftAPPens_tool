@@ -13,7 +13,7 @@
 (function (g) {
   'use strict';
 
-  const TYPES = ['radiate', 'breathe', 'chase', 'reveal', 'wobble', 'hue'];
+  const TYPES = ['draw', 'radiate', 'breathe', 'chase', 'reveal', 'wobble', 'hue'];
 
   /* The frame rate is yours to pick, 60 by default: below about 50 a travelling
      band visibly steps, and nothing here is expensive enough per frame to need
@@ -81,7 +81,7 @@
   /* how many bands it takes to run past the far corner starting from `from`, so
      a travelling band only ever leaves by going out of sight */
   function fillCount(S, from, W, H) {
-    const unit = Engine.computeUnit(S.basis, W, H);
+    const unit = Engine.computeUnit(S, W, H);
     const period = Math.max(0.01, S.strokeW + S.ringGap);
     const reach = Math.hypot(W, H) / unit * 100;
     return Math.min(MAX_BANDS, Math.ceil((reach - from) / period) + 2);
@@ -130,6 +130,40 @@
         if (W) A.ringCount = fillCount(A, A.ringOffset, W, H);
         break;
       }
+      case 'draw': {
+        /* The strokes are drawn on, one sweep round the silhouette each.
+
+           Each ring gets its own progress, and the rings are offset in time by
+           `drawStagger` so they follow one another instead of all arriving at
+           once. `drawFrom` is the side the pen starts at and `drawSweep` the way
+           it travels; with `drawAlternate` every other ring starts from the
+           opposite side and runs the other way, which is the interleaved look.
+
+           `drawEnd` decides what the loop does once everything is drawn: hold
+           it there, or retrace it back off so the loop closes on itself. */
+        const rings = Math.max(1, Math.min(MAX_BANDS, Math.round(S.ringCount) || 1));
+        const lead = U.clamp(+S.drawStagger || 0, 0, 95) / 100;
+        const step = rings > 1 ? lead / (rings - 1) : 0;
+        const span = Math.max(0.05, 1 - lead);
+
+        // 0 -> 1 across the loop, or 0 -> 1 -> 0 when it has to close on itself
+        const march = S.drawEnd === 'rewind'
+          ? ease(1 - Math.abs(1 - 2 * t), S.animEase) : ease(t, S.animEase);
+
+        const FROM = { right: 0, bottom: Math.PI / 2, left: Math.PI, top: -Math.PI / 2 };
+        const from0 = FROM[S.drawFrom] != null ? FROM[S.drawFrom] : 0;
+        const sweep = S.drawSweep === 'ccw' ? -1 : 1;
+
+        const prog = new Array(rings);
+        const dirs = new Array(rings);
+        for (let i = 0; i < rings; i++) {
+          prog[i] = U.clamp((march - i * step) / span, 0, 1);
+          dirs[i] = (S.drawAlternate && (i % 2)) ? -sweep : sweep;
+        }
+        A.reveal = { prog: prog, dirs: dirs, from: from0 };
+        A.ringCount = rings;
+        break;
+      }
       case 'breathe':
         A.strokeW = Math.max(0.05, S.strokeW * (1 + Math.sin(t * 2 * Math.PI) * amt));
         break;
@@ -144,7 +178,7 @@
         break;
       }
       case 'wobble':
-        A.maskExpand = S.maskExpand + Math.sin(t * 2 * Math.PI) * amt * 4;
+        A.maskExpand = S.maskExpand + Math.sin(t * 2 * Math.PI) * amt * 50;
         break;
       case 'hue': {
         // a full turn of the colour wheel lands on the colours it started with

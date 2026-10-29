@@ -3,7 +3,7 @@
    RESOLUTION INDEPENDENCE
    -----------------------
    Every spatial parameter (stroke, gap, offset, smoothing, dither cell, grain,
-   image offset) is stored as a PERCENTAGE of a basis dimension of the canvas.
+   image offset) is stored as a number of CANVAS PIXELS.
    At render time:  px = pct / 100 * unit,  unit = f(width, height).
    Preview and export run the exact same maths at different scales, so the design
    is proportionally identical from a 1080px post to an 8000px banner.
@@ -16,14 +16,22 @@
      these in an Int8Array, which tops out at 127. */
   const MAXCODE = 120;
 
-  function computeUnit(basis, W, H) {
-    switch (basis) {
-      case 'long': return Math.max(W, H);
-      case 'width': return W;
-      case 'height': return H;
-      case 'diag': return Math.hypot(W, H) / Math.SQRT2;
-      default: return Math.min(W, H);
-    }
+  /* Every size in this tool — stroke width, gap, offset, smoothing, brush nib —
+     is a number of CANVAS pixels, and stays that number whatever the canvas is.
+     A 32px stroke is 32px on a square post and 32px on a three metre banner.
+
+     It used to be a percentage of a chosen side of the canvas, which meant the
+     same design drew different weights on different formats and there was a
+     control asking which side to measure against. Nobody wants to answer that.
+
+     A render can still happen at any resolution — a small preview, a 2x export,
+     a supersampled trace — so the stored number is scaled by how big this render
+     is against the canvas it describes. The formula every caller already uses,
+     value / 100 * unit, then lands on exactly the right number of pixels. */
+  function computeUnit(S, W, H) {
+    const c = canvasPx(S);
+    const k = c.W > 0 ? W / c.W : 1;
+    return 100 * k;
   }
 
   function canvasPx(S) {
@@ -132,7 +140,7 @@
   /* canvas point -> point in the source image, normalised to [0..1] */
   function canvasToSource(img, S, W, H, px, py) {
     if (!img) return null;
-    const unit = computeUnit(S.basis, W, H);
+    const unit = computeUnit(S, W, H);
     const m = placementMatrix(img, W, H, S, unit).inverse();
     const p = m.transformPoint(new DOMPoint(px, py));
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
@@ -148,7 +156,7 @@
     let fx = 0, fy = 0, fw = iw, fh = ih;
     const b = S.fitSubject ? subjectBox(src) : null;
     if (b) { fx = b.x; fy = b.y; fw = b.w; fh = b.h; }
-    const m = placementMatrix(src, W, H, S, computeUnit(S.basis, W, H));
+    const m = placementMatrix(src, W, H, S, computeUnit(S, W, H));
     const pts = [[fx, fy], [fx + fw, fy], [fx + fw, fy + fh], [fx, fy + fh]]
       .map(c => m.transformPoint(new DOMPoint(c[0], c[1])));
     const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
@@ -160,7 +168,7 @@
   /* point in the source image (normalised) -> canvas coords */
   function sourceToCanvas(img, S, W, H, nx, ny) {
     if (!img) return null;
-    const m = placementMatrix(img, W, H, S, computeUnit(S.basis, W, H));
+    const m = placementMatrix(img, W, H, S, computeUnit(S, W, H));
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     const q = m.transformPoint(new DOMPoint(nx * iw, ny * ih));
     return { x: q.x, y: q.y };
@@ -170,7 +178,7 @@
      background brush at its true size on the artboard */
   function sourceScale(img, S, W, H) {
     if (!img) return 1;
-    const m = placementMatrix(img, W, H, S, computeUnit(S.basis, W, H));
+    const m = placementMatrix(img, W, H, S, computeUnit(S, W, H));
     return Math.hypot(m.a, m.b);
   }
 
@@ -396,10 +404,40 @@
     const wts = S.aa ? [0.25, 0.5, 0.25] : [1];
     const nt = taps.length;
 
+    /* Drawing the strokes ON rather than having them all there.
+
+       S.reveal carries, per ring, how far round it has been drawn — and from
+       which angle, and which way round. A ring's pixel is only painted once the
+       sweep has reached its angle about the subject's centre, so the band grows
+       around the silhouette the way a pen would trace it. Everything not yet
+       reached is painted as the space between strokes, which is the background
+       in any ordinary design.
+
+       The angle is measured from the middle of the cut-out, not of the canvas:
+       sweeping about the frame's centre on an off-centre subject starts the
+       stroke in mid-air. */
+    const TAU = Math.PI * 2;
+    let rv = null;
+    if (S.reveal && S.reveal.prog && S.reveal.prog.length) {
+      let sx = 0, sy = 0, m = 0;
+      for (let y = 0, i = 0; y < H; y++) {
+        for (let x = 0; x < W; x++, i++) if (sdf[i] < 0) { sx += x; sy += y; m++; }
+      }
+      rv = {
+        cx: m ? sx / m : W / 2,
+        cy: m ? sy / m : H / 2,
+        prog: S.reveal.prog,
+        from: S.reveal.from || 0,
+        dirs: S.reveal.dirs || null
+      };
+    }
+
     const n = W * H;
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const base = sdf[i] - expand;
       let R = 0, G = 0, B = 0;
+      // the angle does not depend on the tap, so it is worked out once
+      const ang = rv ? Math.atan2(((i / W) | 0) - rv.cy, (i % W) - rv.cx) - rv.from : 0;
       for (let t = 0; t < nt; t++) {
         const d = base + taps[t];
         let code;
@@ -409,6 +447,17 @@
         } else {
           const k = (d * inv) | 0;
           code = k < nO ? lutO[k] : -3;
+        }
+        if (rv && code >= 0) {
+          const pr = rv.prog[code];
+          if (pr != null && pr < 1) {
+            if (pr <= 0) code = -1;
+            else {
+              let a = ang * (rv.dirs ? rv.dirs[code] : 1);
+              a -= Math.floor(a / TAU) * TAU;
+              if (a > pr * TAU) code = -1;
+            }
+          }
         }
         const ci = code + 4, wt = wts[t];
         R += pal.r[ci] * wt; G += pal.g[ci] * wt; B += pal.b[ci] * wt;
@@ -504,7 +553,7 @@
       if (mode === 'halftone') {
         /* Classic rotated dot screen: inside each cell the ink dot grows as the
            tone darkens, its AREA proportional to coverage (hence the sqrt).
-           The cell is a percentage of the basis, so the screen ruling scales with
+           The cell is a pixel size on the canvas, so the screen ruling scales with
            the canvas instead of dissolving into noise on a large export. */
         const cell = Math.max(2, S.ditherScale / 100 * unit);
         const a = S.halftoneAngle * Math.PI / 180;
@@ -635,7 +684,7 @@
   let cache = { key: null };
 
   function fieldKey(S, W, H, token) {
-    return [W, H, S.basis, S.fit, S.fitSubject, S.imgScale, S.imgX, S.imgY, S.rotate, S.flipH, S.flipV,
+    return [W, H, S.fit, S.fitSubject, S.imgScale, S.imgX, S.imgY, S.rotate, S.flipH, S.flipV,
       S.bgMode,
       S.maskSource, S.maskThreshold, S.maskInvert, S.maskFillHoles, S.maskSmooth, token].join('|');
   }
@@ -648,7 +697,7 @@
      resolutions the SVG embeds a picture at, that was most of the memory the
      export used, computed and thrown away. */
   function artField(S, img, W, H, token) {
-    const unit = computeUnit(S.basis, W, H);
+    const unit = computeUnit(S, W, H);
     const src = preparedSource(img, S, token);
     const placed = placeImage(src, W, H, S, unit);
     const data = placed.getContext('2d').getImageData(0, 0, W, H).data;
@@ -668,7 +717,7 @@
   function field(S, img, W, H, token) {
     const key = fieldKey(S, W, H, token);
     if (cache.key === key) return cache.val;
-    const unit = computeUnit(S.basis, W, H);
+    const unit = computeUnit(S, W, H);
     const src = preparedSource(img, S, token);
     const placed = placeImage(src, W, H, S, unit);
     const data = placed.getContext('2d').getImageData(0, 0, W, H).data;
@@ -736,7 +785,7 @@
   }
 
   function render(S, img, W, H, token) {
-    const unit = computeUnit(S.basis, W, H);
+    const unit = computeUnit(S, W, H);
     const out = U.createCanvas(W, H);
     const ctx = out.getContext('2d');
     ctx.drawImage(baseLayer(S, img, W, H, token, unit), 0, 0);
@@ -771,7 +820,7 @@
     const k = fitGrid(W, H, U.clamp(res / Math.max(W, H), 0.25, 4), GRID_BUDGET);
     const rw = Math.max(64, Math.round(W * k));
     const rh = Math.max(64, Math.round(H * k));
-    const runit = computeUnit(S.basis, rw, rh);
+    const runit = computeUnit(S, rw, rh);
     const f = field(S, img, rw, rh, token + '#svg');
 
     const P = 3;
@@ -815,7 +864,7 @@
     const ka = fitGrid(W, H, U.clamp(res / Math.max(W, H), 1, 4), ART_BUDGET);
     const aw = Math.max(1, Math.round(W * ka)), ah = Math.max(1, Math.round(H * ka));
     const fArt = ka === 1 ? field(S, img, W, H, token) : artField(S, img, aw, ah, token + '#art');
-    const art = buildArt(fArt.placed, fArt.mask, aw, ah, S, computeUnit(S.basis, aw, ah));
+    const art = buildArt(fArt.placed, fArt.mask, aw, ah, S, computeUnit(S, aw, ah));
     if (art) {
       parts.push('<image x="0" y="0" width="' + W + '" height="' + H + '" opacity="' +
         (S.artOpacity / 100) + '" xlink:href="' + art.toDataURL('image/png') + '"/>');
@@ -823,7 +872,7 @@
 
     if (S.paint && S.paint.length) {
       const pc = U.createCanvas(aw, ah);
-      Paint.render(pc.getContext('2d'), S.paint, aw, ah, computeUnit(S.basis, aw, ah));
+      Paint.render(pc.getContext('2d'), S.paint, aw, ah, computeUnit(S, aw, ah));
       parts.push('<image x="0" y="0" width="' + W + '" height="' + H +
         '" xlink:href="' + pc.toDataURL('image/png') + '"/>');
     }

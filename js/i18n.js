@@ -15,6 +15,11 @@
     },
     l: {
       sizePreset: "Preset",
+      drawFrom: "Starts at the",
+      drawSweep: "Travels",
+      drawAlternate: "Alternate sides",
+      drawStagger: "One after another",
+      drawEnd: "When it is drawn",
       animFps: "Frames per second",
       animQuality: "Quality",
       exportPng: "Export PNG",
@@ -23,7 +28,6 @@
       ch: "Height",
       units: "Units",
       dpi: "DPI",
-      basis: "Sizes relative to",
       bg: "Background",
       reset: "Reset everything",
       align: "Align",
@@ -110,8 +114,7 @@
     },
     h: {
       fitSubject: 'Ignores empty transparent margins, so Fit and Scale measure the subject itself rather than the file’s edges. Only affects images with transparency.',
-      basis: 'All % sizes are measured against this. Short side keeps weights stable across formats.',
-      strokeW: 'Percent of the basis dimension — identical proportion at every export size.',
+      strokeW: 'A number of canvas pixels, and it stays that number on any canvas — a 32px stroke is 32px on a square post and on a banner.',
       ringGrowth: 'Multiplies each stroke against the previous one. 1 = all equal.',
       innerRings: 'Repeats the strokes inside the silhouette.',
       artClip: 'Keeps dither and grain off the background of a photo that has no transparency.',
@@ -128,10 +131,12 @@
       previewQuality: 'The ceiling on how large the on-screen preview is rendered. It never affects an export — raise it if the artboard looks soft on a big or high-density display, lower it if editing feels sluggish.',
       animSeconds: 'How long one full cycle of the movement takes. This is the speed — shorter is faster — and it is what the preview loops over.',
       animDuration: 'How long the exported file runs. A whole number of loops ends exactly where it began; anything else stops partway through a cycle.',
+      drawAlternate: 'Every other stroke starts from the opposite side and travels the other way, so they cross as they are drawn.',
+      drawStagger: 'How far apart the strokes start. At zero they are all drawn together; high up, each one waits for the one before it.',
       animFormat: 'MP4 plays anywhere and keeps the most detail. WebM is the fallback where H.264 is unavailable. GIF is universal but holds 256 colours and tops out at 50fps. PNG writes every frame as its own file.',
       animFps: 'The video formats honour this exactly. GIF cannot: its delays are whole hundredths of a second, so it is written at 50fps however high you set this.',
       svgRes: 'The strokes are traced at this size and written as real vector paths — higher follows the outline more closely and makes a bigger file.',
-      brushWidth: 'Percentage of the basis dimension, like every other size here, so a scribble keeps its proportion at any export size.'
+      brushWidth: 'Canvas pixels, like every other size here.'
     },
     o: {
       'size.custom': 'Custom', 'size.ig-post': 'Instagram post 1080²', 'size.ig-story': 'Instagram story',
@@ -139,8 +144,6 @@
       'size.a5': 'A5 flyer 300dpi', 'size.a4': 'A4 300dpi', 'size.a3': 'A3 poster 200dpi',
       'size.b2': 'Poster 50×70cm 120dpi', 'size.banner': 'Banner 3×1m 25dpi', 'size.sticker': 'Sticker 10×10cm',
       'units.px': 'Pixels', 'units.mm': 'Millimetres', 'units.in': 'Inches',
-      'basis.short': 'Short side', 'basis.long': 'Long side', 'basis.width': 'Width',
-      'basis.height': 'Height', 'basis.diag': 'Diagonal',
       'pq.700': 'Fast', 'pq.1200': 'Normal', 'pq.1800': 'High', 'pq.2600': 'Very high',
       'fit.contain': 'Contain', 'fit.cover': 'Cover',
       'ms.auto': 'Auto', 'ms.alpha': 'Transparency', 'ms.dark': 'Dark pixels', 'ms.light': 'Light pixels',
@@ -158,6 +161,10 @@
       'bt.calligraphy': 'Calligraphy', 'bt.chalk': 'Chalk', 'bt.spray': 'Spray',
       'bt.dashed': 'Dashed', 'bt.highlighter': 'Highlighter',
       'es.0.5': '0.5×', 'es.1': '1× (canvas size)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
+      'an.draw': 'Draw the strokes on',
+      'df.top': 'Top', 'df.right': 'Right', 'df.bottom': 'Bottom', 'df.left': 'Left',
+      'dw.cw': 'Clockwise', 'dw.ccw': 'Anticlockwise',
+      'de.hold': 'Hold it there', 'de.rewind': 'Retrace it off',
       'af.mp4': 'MP4 · H.264',
       'fps.24': '24 fps', 'fps.30': '30 fps', 'fps.50': '50 fps',
       'fps.60': '60 fps', 'fps.90': '90 fps', 'fps.120': '120 fps',
@@ -166,7 +173,6 @@
     },
     m: {
       title: 'Stroke weight check',
-      basis: (u, band, pct) => 'basis ' + u + 'px · whole stroke band ' + band + 'px = ' + pct + '% of basis',
       note: 'Right column is the stroke as a share of each format’s short side. Matching values mean the design reads identically at any output size.',
       igpost: 'IG post', a4: 'A4 @300', banner: '3m banner @50dpi'
     },
@@ -226,6 +232,11 @@
     },
     l: {
       sizePreset: "Predefinição",
+      drawFrom: "Começa em",
+      drawSweep: "Percorre",
+      drawAlternate: "Lados alternados",
+      drawStagger: "Um a seguir ao outro",
+      drawEnd: "Quando acabar",
       animFps: "Imagens por segundo",
       animQuality: "Qualidade",
       exportPng: "Exportar PNG",
@@ -234,7 +245,6 @@
       ch: "Altura",
       units: "Unidades",
       dpi: "DPI",
-      basis: "Tamanhos relativos a",
       bg: "Fundo",
       reset: "Repor tudo",
       align: "Alinhar",
@@ -321,8 +331,7 @@
     },
     h: {
       fitSubject: 'Ignora as margens transparentes vazias, para que o Ajuste e a Escala meçam o recorte em si e não os limites do ficheiro. Só afeta imagens com transparência.',
-      basis: 'Todos os tamanhos em % são medidos em relação a isto. O lado curto mantém as espessuras estáveis entre formatos.',
-      strokeW: 'Percentagem da dimensão base — proporção idêntica em qualquer tamanho de exportação.',
+      strokeW: 'Um número de píxeis da tela, e continua esse número em qualquer tela — 32px é 32px num post quadrado e num banner.',
       ringGrowth: 'Multiplica cada contorno em relação ao anterior. 1 = todos iguais.',
       innerRings: 'Repete os contornos dentro da silhueta.',
       artClip: 'Mantém o pontilhado e o grão fora do fundo de uma fotografia sem transparência.',
@@ -339,10 +348,12 @@
       previewQuality: 'O limite do tamanho a que a pré-visualização é desenhada. Nunca afeta uma exportação — aumente se a área de trabalho parecer pouco nítida num ecrã grande ou de alta densidade, baixe se a edição ficar lenta.',
       animSeconds: 'Quanto demora um ciclo completo do movimento. É isto a velocidade — mais curto é mais rápido — e é o que a pré-visualização repete.',
       animDuration: 'Quanto dura o ficheiro exportado. Um número inteiro de ciclos acaba onde começou; qualquer outro valor pára a meio de um ciclo.',
+      drawAlternate: 'Um contorno sim, outro não começa do lado oposto e percorre ao contrário, por isso cruzam-se enquanto são desenhados.',
+      drawStagger: 'A distância entre os arranques. A zero são todos desenhados ao mesmo tempo; no máximo, cada um espera pelo anterior.',
       animFormat: 'O MP4 abre em todo o lado e guarda mais detalhe. O WebM é a alternativa onde não há H.264. O GIF é universal mas só tem 256 cores e no máximo 50fps. O PNG grava cada imagem num ficheiro.',
       animFps: 'Os formatos de vídeo respeitam isto exatamente. O GIF não consegue: os atrasos são centésimos de segundo inteiros, por isso é gravado a 50fps por mais alto que escolha.',
       svgRes: 'Os contornos são traçados a este tamanho e escritos como vetores reais — mais alto segue melhor o contorno e dá um ficheiro maior.',
-      brushWidth: 'Percentagem da dimensão base, como todos os outros tamanhos aqui, para que um rabisco mantenha a proporção em qualquer tamanho de exportação.'
+      brushWidth: 'Píxeis da tela, como todos os outros tamanhos aqui.'
     },
     o: {
       'size.custom': 'Personalizado', 'size.ig-post': 'Publicação Instagram 1080²', 'size.ig-story': 'Story Instagram',
@@ -350,8 +361,6 @@
       'size.a5': 'Panfleto A5 300dpi', 'size.a4': 'A4 300dpi', 'size.a3': 'Cartaz A3 200dpi',
       'size.b2': 'Cartaz 50×70cm 120dpi', 'size.banner': 'Lona 3×1m 25dpi', 'size.sticker': 'Autocolante 10×10cm',
       'units.px': 'Píxeis', 'units.mm': 'Milímetros', 'units.in': 'Polegadas',
-      'basis.short': 'Lado curto', 'basis.long': 'Lado longo', 'basis.width': 'Largura',
-      'basis.height': 'Altura', 'basis.diag': 'Diagonal',
       'pq.700': 'Rápida', 'pq.1200': 'Normal', 'pq.1800': 'Alta', 'pq.2600': 'Muito alta',
       'fit.contain': 'Conter', 'fit.cover': 'Cobrir',
       'ms.auto': 'Automático', 'ms.alpha': 'Transparência', 'ms.dark': 'Píxeis escuros', 'ms.light': 'Píxeis claros',
@@ -369,6 +378,10 @@
       'bt.calligraphy': 'Caligrafia', 'bt.chalk': 'Giz', 'bt.spray': 'Spray',
       'bt.dashed': 'Tracejado', 'bt.highlighter': 'Marcador fluorescente',
       'es.0.5': '0,5×', 'es.1': '1× (tamanho da tela)', 'es.2': '2×', 'es.3': '3×', 'es.4': '4×',
+      'an.draw': 'Desenhar os contornos',
+      'df.top': 'Cima', 'df.right': 'Direita', 'df.bottom': 'Baixo', 'df.left': 'Esquerda',
+      'dw.cw': 'Sentido horário', 'dw.ccw': 'Sentido anti-horário',
+      'de.hold': 'Fica desenhado', 'de.rewind': 'Desfaz o traço',
       'af.mp4': 'MP4 · H.264',
       'fps.24': '24 fps', 'fps.30': '30 fps', 'fps.50': '50 fps',
       'fps.60': '60 fps', 'fps.90': '90 fps', 'fps.120': '120 fps',
@@ -377,7 +390,6 @@
     },
     m: {
       title: 'Verificação da espessura',
-      basis: (u, band, pct) => 'base ' + u + 'px · banda total ' + band + 'px = ' + pct + '% da base',
       note: 'A coluna da direita é o contorno como fração do lado curto de cada formato. Valores iguais significam que o design se lê da mesma forma em qualquer tamanho.',
       igpost: 'Publicação IG', a4: 'A4 @300', banner: 'Lona 3m @50dpi'
     },

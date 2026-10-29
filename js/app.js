@@ -177,8 +177,6 @@
   }
 
   function refresh() {
-    const px = Engine.canvasPx(S);
-    const unit = Engine.computeUnit(S.basis, px.W, px.H);
     controls.forEach(it => {
       if (!it._row) return;
       const vis = it.show ? it.show(S) : true;
@@ -227,8 +225,7 @@
         it._num.value = Math.round(v * 1000) / 1000;
         const pct = (v - it.min) / (it.max - it.min) * 100;
         it._input.style.setProperty('--fill', U.clamp(pct, 0, 100) + '%');
-        it._val.innerHTML = it.px
-          ? '<span class="px">' + U.nice(v / 100 * unit, 1) + 'px</span>' : '';
+        it._val.innerHTML = '';
       } else if (it.t === 'check') it._input.checked = !!v;
       else if (it.t === 'palette') it._render();
       else if (it.t === 'presets') it._render();
@@ -419,7 +416,7 @@
     const c = Engine.canvasPx(S);
     const r = Engine.subjectRect(IMG, S, c.W, c.H, TOKEN);
     if (!r) return;
-    const unit = Engine.computeUnit(S.basis, c.W, c.H);
+    const unit = Engine.computeUnit(S, c.W, c.H);
     S.imgX = U.clamp(S.imgX + (hx * (c.W - r.w) - r.x) / unit * 100, -150, 150);
     S.imgY = U.clamp(S.imgY + (vy * (c.H - r.h) - r.y) / unit * 100, -150, 150);
     refresh(); scheduleRender(); save();
@@ -534,8 +531,29 @@
       // display. A value at or below it is the old default, not a preference.
       if (!(+S.previewQuality > 1200)) S.previewQuality = d.previewQuality;
     }
+    if (storedRev < 3) toPixels();
     S.rev = d.rev;
     save();
+  }
+
+  /* Sizes used to be percentages of whichever side of the canvas you had picked.
+     They are plain canvas pixels now, so a stored design would come back with a
+     2.4px stroke where it meant 2.4% — invisible. Each one is converted through
+     the basis it was actually drawn against, so the design that comes back is
+     the design that was saved. */
+  function toPixels() {
+    const basis = S.basis || 'short';
+    const c = Engine.canvasPx(S);
+    const unit = basis === 'long' ? Math.max(c.W, c.H)
+      : basis === 'width' ? c.W
+      : basis === 'height' ? c.H
+      : basis === 'diag' ? Math.hypot(c.W, c.H) / Math.SQRT2
+      : Math.min(c.W, c.H);
+    const px = v => Math.round(((+v || 0) / 100) * unit * 10) / 10;
+    ['strokeW', 'ringGap', 'ringOffset', 'maskSmooth', 'maskExpand',
+     'brushWidth', 'ditherScale', 'grainScale', 'animGrainScale'].forEach(k => { S[k] = px(S[k]); });
+    if (Array.isArray(S.paint)) S.paint.forEach(st => { if (st) st.width = px(st.width); });
+    delete S.basis;
   }
 
   function setLang(l) {

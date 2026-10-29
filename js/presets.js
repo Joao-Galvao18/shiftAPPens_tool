@@ -39,7 +39,7 @@
       settings: {
         bg: '#FE593B',
         ringCount: 5,
-        strokeW: 2,
+        strokeW: 32.4,
         ringGap: 0,
         ringOffset: 0,
         ringGrowth: 1,
@@ -51,7 +51,7 @@
         haloUseBg: true, haloColor: '#FFFBF8',
         fillUseBg: true, fillColor: '#FFFBF8',
         aa: true,
-        maskSource: 'auto', maskThreshold: 160, maskSmooth: 0.8,
+        maskSource: 'auto', maskThreshold: 160, maskSmooth: 11,
         maskExpand: 0, maskFillHoles: true, maskInvert: false
       }
     }

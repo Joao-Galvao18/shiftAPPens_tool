@@ -61,18 +61,18 @@
 
   function defaults() {
     return {
-      rev: 2, lang: 'en', tab: 'strokes', closedGroups: {},
+      rev: 3, lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
-      basis: 'short', previewQuality: 2600, bg: '#FFEA00',
+      previewQuality: 2600, bg: '#FFEA00',
       // placement
       fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
       // silhouette
       maskSource: 'auto', maskThreshold: 160, maskInvert: false, maskFillHoles: true,
-      maskSmooth: 0.8, maskExpand: 0,
+      maskSmooth: 11, maskExpand: 0,
       // strokes
-      ringCount: 4, strokeW: 2.4, ringGap: 0, ringOffset: 1.6, ringGrowth: 1,
+      ringCount: 4, strokeW: 32.4, ringGap: 0, ringOffset: 21.6, ringGrowth: 1,
       ringColors: ['#32C4BA', '#039545'],
       gapUseBg: true, gapColor: '#FFFBF8',
       haloUseBg: true, haloColor: '#FFFBF8',
@@ -83,19 +83,20 @@
       // artwork
       artMode: 'photo', artOpacity: 100, brightness: 0, contrast: 10, saturation: 100,
       artInvert: false, posterize: 0,
-      bwThreshold: 150, ditherMode: 'none', ditherStrength: 100, ditherScale: 0.08,
+      bwThreshold: 150, ditherMode: 'none', ditherStrength: 100, ditherScale: 1.1,
       halftoneAngle: 45, halftoneShape: 'dot',
       crispPixels: true, artClip: false, inkOn: 'dark', inkColor: '#FFFBF8',
       paperColor: '#1A2321', paperTransparent: true,
       // drawing
-      paint: [], brushColor: '#DF48B6', brushWidth: 1.6, brushType: 'scribble',
+      paint: [], brushColor: '#DF48B6', brushWidth: 21.6, brushType: 'scribble',
       // grain
-      grainAmount: 0, grainScale: 0.2, grainMono: true,
+      grainAmount: 0, grainScale: 2.7, grainMono: true,
       // animation
-      animType: 'radiate', animDir: 'out', animSeconds: 1.5, animDuration: 3,
+      animType: 'draw', animDir: 'out', animSeconds: 1.5, animDuration: 3,
+      drawFrom: 'top', drawSweep: 'cw', drawAlternate: false, drawStagger: 55, drawEnd: 'hold',
       animAmount: 35, animScale: 1, animFormat: 'mp4',
       animFps: 60, animQuality: 'high',
-      animEase: true, animGrain: 0, animGrainScale: 0.25, animGrainMono: true,
+      animEase: true, animGrain: 0, animGrainScale: 3.4, animGrainMono: true,
       // output
       seed: 7, svgSimplify: 0.35, svgRes: 2600, exportScale: 1
     };
@@ -115,6 +116,7 @@
   const sizeOpts = [['custom', 'size.custom']].concat(
     Object.keys(SIZE_PRESETS).map(k => [k, 'size.' + k]));
 
+  const isDraw = s => s.animType === 'draw';
   const isBitmap = s => s.artMode === 'bitmap';
   const isPhoto = s => s.artMode === 'photo';
   const isPicture = s => s.artMode === 'photo' || s.artMode === 'bitmap';
@@ -152,7 +154,7 @@
               k: 'ditherMode', t: 'select', show: isBitmap,
               o: [['none', 'dm.none'], ['halftone', 'dm.halftone'], ['bayer4', 'dm.bayer4'], ['bayer8', 'dm.bayer8'], ['floyd', 'dm.floyd'], ['noise', 'dm.noise']]
             },
-            { k: 'ditherScale', t: 'range', min: 0.02, max: 4, step: 0.01, u: '%', px: true, show: s => isBitmap(s) && s.ditherMode !== 'none' },
+            { k: 'ditherScale', t: 'range', min: 0.5, max: 120, step: 0.5, u: 'px', show: s => isBitmap(s) && s.ditherMode !== 'none' },
             { k: 'halftoneAngle', t: 'range', min: 0, max: 90, step: 1, u: '°', show: s => isBitmap(s) && s.ditherMode === 'halftone' },
             { k: 'halftoneShape', t: 'select', o: [['dot', 'hs.dot'], ['square', 'hs.square'], ['line', 'hs.line']], show: s => isBitmap(s) && s.ditherMode === 'halftone' },
             { k: 'ditherStrength', t: 'range', min: 0, max: 200, step: 1, u: '%', show: s => isBitmap(s) && s.ditherMode !== 'none' && s.ditherMode !== 'floyd' },
@@ -171,7 +173,7 @@
         {
           id: 'grain', items: [
             { k: 'grainAmount', t: 'range', min: 0, max: 100, step: 1, u: '%' },
-            { k: 'grainScale', t: 'range', min: 0.02, max: 3, step: 0.01, u: '%', px: true, show: s => s.grainAmount > 0 },
+            { k: 'grainScale', t: 'range', min: 0.5, max: 90, step: 0.5, u: 'px', show: s => s.grainAmount > 0 },
             { k: 'grainMono', t: 'check', show: s => s.grainAmount > 0 },
             { k: 'seed', t: 'num', min: 0, max: 9999, step: 1, show: s => s.grainAmount > 0 || s.ditherMode === 'noise' }
           ]
@@ -184,9 +186,9 @@
         {
           id: 'shape', items: [
             { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
-            { k: 'strokeW', t: 'range', min: 0.05, max: 15, step: 0.01, u: '%', px: true, hint: true },
-            { k: 'ringGap', t: 'range', min: 0, max: 15, step: 0.01, u: '%', px: true },
-            { k: 'ringOffset', t: 'range', min: 0, max: 25, step: 0.01, u: '%', px: true },
+            { k: 'strokeW', t: 'range', min: 0.5, max: 400, step: 0.1, u: 'px', hint: true },
+            { k: 'ringGap', t: 'range', min: 0, max: 400, step: 0.1, u: 'px' },
+            { k: 'ringOffset', t: 'range', min: 0, max: 600, step: 0.1, u: 'px' },
             { k: 'ringGrowth', t: 'range', min: 0.5, max: 2, step: 0.01, u: '×' },
             { k: 'innerRings', t: 'range', min: 0, max: 40, step: 1 }
           ]
@@ -206,8 +208,8 @@
           id: 'silhouette', items: [
             { k: 'maskSource', t: 'select', o: [['auto', 'ms.auto'], ['alpha', 'ms.alpha'], ['dark', 'ms.dark'], ['light', 'ms.light']] },
             { k: 'maskThreshold', t: 'range', min: 0, max: 255, step: 1, show: s => s.maskSource === 'dark' || s.maskSource === 'light' },
-            { k: 'maskSmooth', t: 'range', min: 0, max: 6, step: 0.05, u: '%', px: true, hint: true },
-            { k: 'maskExpand', t: 'range', min: -8, max: 8, step: 0.05, u: '%', px: true },
+            { k: 'maskSmooth', t: 'range', min: 0, max: 150, step: 0.5, u: 'px', hint: true },
+            { k: 'maskExpand', t: 'range', min: -200, max: 200, step: 0.5, u: 'px' },
             { k: 'maskFillHoles', t: 'check' },
             { k: 'maskInvert', t: 'check' },
             { k: 'aa', t: 'check' }
@@ -223,12 +225,21 @@
             { k: 'animPlay', t: 'button', act: 'animPlay' },
             {
               k: 'animType', t: 'select', hint: true,
-              o: [['radiate', 'an.radiate'], ['breathe', 'an.breathe'], ['chase', 'an.chase'],
-                  ['reveal', 'an.reveal'], ['wobble', 'an.wobble'], ['hue', 'an.hue']]
+              o: [['draw', 'an.draw'], ['radiate', 'an.radiate'], ['breathe', 'an.breathe'],
+                  ['chase', 'an.chase'], ['reveal', 'an.reveal'], ['wobble', 'an.wobble'],
+                  ['hue', 'an.hue']]
             },
+            {
+              k: 'drawFrom', t: 'select', show: isDraw,
+              o: [['top', 'df.top'], ['right', 'df.right'], ['bottom', 'df.bottom'], ['left', 'df.left']]
+            },
+            { k: 'drawSweep', t: 'select', show: isDraw, o: [['cw', 'dw.cw'], ['ccw', 'dw.ccw']] },
+            { k: 'drawAlternate', t: 'check', hint: true, show: isDraw },
+            { k: 'drawStagger', t: 'range', min: 0, max: 95, step: 1, u: '%', hint: true, show: isDraw },
+            { k: 'drawEnd', t: 'select', show: isDraw, o: [['hold', 'de.hold'], ['rewind', 'de.rewind']] },
             { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' || s.animType === 'hue' },
             { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
-            { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' },
+            { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' || isDraw(s) },
             { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's', hint: true },
             { k: 'animScrub', t: 'range', min: 0, max: 100, step: 1, u: '%' }
           ]
@@ -236,7 +247,7 @@
         {
           id: 'anmgrain', items: [
             { k: 'animGrain', t: 'range', min: 0, max: 100, step: 1, u: '%', hint: true },
-            { k: 'animGrainScale', t: 'range', min: 0.05, max: 3, step: 0.01, u: '%', px: true, show: s => s.animGrain > 0 },
+            { k: 'animGrainScale', t: 'range', min: 0.5, max: 90, step: 0.5, u: 'px', show: s => s.animGrain > 0 },
             { k: 'animGrainMono', t: 'check', show: s => s.animGrain > 0 }
           ]
         },
@@ -274,7 +285,7 @@
                   ['dashed', 'bt.dashed'], ['highlighter', 'bt.highlighter']]
             },
             { k: 'brushColor', t: 'color' },
-            { k: 'brushWidth', t: 'range', min: 0.1, max: 12, step: 0.05, u: '%', px: true, hint: true },
+            { k: 'brushWidth', t: 'range', min: 1, max: 300, step: 0.5, u: 'px', hint: true },
             { k: 'undoDraw', t: 'button', act: 'undoDraw' },
             { k: 'clearDraw', t: 'button', act: 'clearDraw', danger: true }
           ]
@@ -302,11 +313,6 @@
         },
         {
           id: 'quality', items: [
-            {
-              k: 'basis', t: 'select', hint: true,
-              o: [['short', 'basis.short'], ['long', 'basis.long'], ['width', 'basis.width'],
-                  ['height', 'basis.height'], ['diag', 'basis.diag']]
-            },
             { k: 'previewQuality', t: 'range', min: 600, max: 6000, step: 100, u: 'px', hint: true },
             { k: 'reset', t: 'button', act: 'reset', danger: true }
           ]

@@ -1,7 +1,7 @@
 /* paint.js — the drawing layer.
 
    Strokes are stored in NORMALISED canvas coordinates (x and y in [0..1]) and the
-   nib width as a percentage of the basis dimension, exactly like every other
+   nib width in canvas pixels, exactly like every other
    spatial parameter. A scribble drawn on the 1200px preview therefore comes out
    at the same proportion on an 8000px banner.
 */
