@@ -42,9 +42,17 @@
     return Math.max(0.05, +S.animSeconds || 1.5);
   }
 
+  /* How long the file runs. Counted in whole loops by default, because that is
+     the only way the restart cannot be seen: a length in seconds that does not
+     divide by the loop stops partway through the movement, and the player cuts
+     straight back to the beginning. */
   function durationSeconds(S) {
-    const v = +(S && S.animDuration);
-    return Math.max(0.1, isFinite(v) && v > 0 ? v : loopSeconds(S));
+    if (S && S.animLengthBy === 'seconds') {
+      const v = +S.animDuration;
+      return Math.max(0.1, isFinite(v) && v > 0 ? v : loopSeconds(S));
+    }
+    const n = Math.max(1, Math.round(+(S && S.animLoops) || 1));
+    return n * loopSeconds(S);
   }
 
   function cycles(S) {
@@ -177,10 +185,20 @@
              stationary and everything moves at one rate, drawing and undoing
              alike, which is why the easing is skipped here — easing IS a
              slowing down at each end. */
-          const span = Math.max(0.02, (1 - lead) / 2);
+          /* Each band runs its OWN full cycle — on, then off — once per loop,
+             and the stagger slides those cycles against each other rather than
+             packing them into the loop end to end.
+
+             Packed end to end, a band that had finished undoing had nothing
+             left to do until the loop came round again, so the frame emptied
+             out and then slowly refilled: with four bands and the stagger at
+             55%, a seventh of the loop was all but blank. Wrapped, every band
+             is always somewhere in its cycle, offset from its neighbours, and
+             because the phase is taken modulo one the frame at the end of the
+             loop is the frame at the start — the join is exact. */
           tail = S.drawEnd === 'erase' ? new Array(rings) : null;
           for (let i = 0; i < rings; i++) {
-            const a = (t - i * step) / span;           // 0..2 over draw then undo
+            const a = mod(t - i * step, 1) * 2;        // 0..2 over draw then undo
             if (S.drawEnd === 'erase') {
               prog[i] = U.clamp(a, 0, 1);
               tail[i] = U.clamp(a - 1, 0, 1);

@@ -96,7 +96,7 @@
       drawFrom: 'top', drawSweep: 'cw', drawAlternate: false, drawStagger: 55, drawEnd: 'hold',
       drawContinuous: true,
       animAmount: 35, animScale: 1, animFormat: 'mp4',
-      animFps: 60, animQuality: 'high',
+      animFps: 60, animQuality: 'high', animLengthBy: 'loops', animLoops: 2,
       animEase: true, animGrain: 0, animGrainScale: 3.4, animGrainMono: true,
       // output
       seed: 7, svgSimplify: 0.35, svgRes: 2600, exportScale: 1
@@ -274,7 +274,10 @@
               o: [['standard', 'q.standard'], ['high', 'q.high'], ['max', 'q.max']],
               show: s => s.animFormat === 'mp4' || s.animFormat === 'webm'
             },
-            { k: 'animDuration', t: 'range', min: 0.2, max: 60, step: 0.1, u: 's', hint: true },
+            { k: 'animLengthBy', t: 'select', hint: true,
+              o: [['loops', 'lb.loops'], ['seconds', 'lb.seconds']] },
+            { k: 'animLoops', t: 'range', min: 1, max: 30, step: 1, show: s => s.animLengthBy !== 'seconds' },
+            { k: 'animDuration', t: 'range', min: 0.2, max: 60, step: 0.1, u: 's', show: s => s.animLengthBy === 'seconds' },
             { k: 'animScale', t: 'select', o: [[0.5, 'es.0.5'], [1, 'es.1'], [2, 'es.2']] },
             { k: 'animExport', t: 'button', act: 'animExport' }
           ]
