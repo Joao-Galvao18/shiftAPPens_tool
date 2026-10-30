@@ -451,14 +451,43 @@
         from: S.reveal.from || 0,
         dirs: S.reveal.dirs || null
       };
+
+      /* The end of a half-drawn band is a cut along a radius, which is a flat
+         chop across the stroke. A round end is the same cut pushed forward by
+         half the stroke's width in the middle and by nothing at all at the
+         edges — the profile of a circle — so the band finishes in a dome the
+         way a round-nibbed pen would leave it.
+
+         How far forward that is, as an ANGLE, depends on how far the pixel is
+         from the centre the sweep turns about: the same half-width is a wide
+         angle close in and a narrow one far out. So the push is worked out per
+         pixel, not once per band. */
+      if (S.drawTip !== 'flat') {
+        const rb = ringBands(S, unit, MAXCODE);
+        const mid = new Float32Array(MAXCODE);
+        const half = new Float32Array(MAXCODE);
+        for (const b of rb.bands) {
+          const c = Math.min(b.c, MAXCODE - 1);
+          mid[c] = (b.s + b.e) / 2;
+          half[c] = Math.max(0.5, (b.e - b.s) / 2);
+        }
+        rv.mid = mid;
+        rv.half = half;
+      }
     }
 
     const n = W * H;
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const base = sdf[i] - expand;
       let R = 0, G = 0, B = 0, A = 0;
-      // the angle does not depend on the tap, so it is worked out once
-      const ang = rv ? Math.atan2(((i / W) | 0) - rv.cy, (i % W) - rv.cx) - rv.from : 0;
+      // the angle and the radius do not depend on the tap, so they are worked
+      // out once per pixel rather than once per sample along the gradient
+      let ang = 0, rad = 1;
+      if (rv) {
+        const ox = (i % W) - rv.cx, oy = ((i / W) | 0) - rv.cy;
+        ang = Math.atan2(oy, ox) - rv.from;
+        rad = Math.max(1, Math.sqrt(ox * ox + oy * oy));
+      }
       for (let t = 0; t < nt; t++) {
         const d = base + taps[t];
         let code;
@@ -482,7 +511,25 @@
             else {
               let a = ang * (rv.dirs ? rv.dirs[code] : 1);
               a -= Math.floor(a / TAU) * TAU;
-              if (a > head * TAU || a < tail * TAU) code = -1;
+              let cap = 0;
+              if (rv.half) {
+                const h = rv.half[code];
+                const u = ((d > 0 ? d : -d) - rv.mid[code]) / h;   // -1..1 across the band
+                const k = 1 - u * u;
+                if (k > 0) cap = h * Math.sqrt(k) / rad;
+              }
+              /* The dome behind the start reaches back past the start angle,
+                 and the angle has already been folded into [0, 2pi) — so a
+                 pixel just behind it reads as nearly a whole turn, not as a
+                 small negative. Folded that way it fails both ends of a plain
+                 range test and the back dome never appears, which is why only
+                 the leading end was round at first. */
+              const hi = head * TAU + cap;
+              const lo = tail * TAU - cap;
+              const inside = lo >= 0
+                ? (a >= lo && a <= hi)
+                : (a >= lo + TAU || a <= hi);
+              if (!inside) code = -1;
             }
           }
         }

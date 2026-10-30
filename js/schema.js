@@ -94,7 +94,7 @@
       // animation
       animType: 'draw', animDir: 'out', animSeconds: 1.5, animDuration: 3,
       drawFrom: 'top', drawSweep: 'cw', drawAlternate: false, drawStagger: 55, drawEnd: 'hold',
-      drawContinuous: true,
+      drawContinuous: true, drawTip: 'round',
       animAmount: 35, animScale: 1, animFormat: 'mp4',
       animFps: 60, animQuality: 'high', animLengthBy: 'loops', animLoops: 2,
       animEase: true, animGrain: 0, animGrainScale: 3.4, animGrainMono: true,
@@ -237,6 +237,8 @@
             { k: 'drawSweep', t: 'select', show: isDraw, o: [['cw', 'dw.cw'], ['ccw', 'dw.ccw']] },
             { k: 'drawAlternate', t: 'check', hint: true, show: isDraw },
             { k: 'drawStagger', t: 'range', min: 0, max: 95, step: 1, u: '%', hint: true, show: isDraw },
+            { k: 'drawTip', t: 'select', hint: true, show: isDraw,
+              o: [['round', 'dt.round'], ['flat', 'dt.flat']] },
             { k: 'drawEnd', t: 'select', hint: true, show: isDraw,
               o: [['hold', 'de.hold'], ['erase', 'de.erase'], ['rewind', 'de.rewind']] },
             {
