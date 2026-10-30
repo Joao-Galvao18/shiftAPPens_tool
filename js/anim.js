@@ -139,16 +139,22 @@
            it travels; with `drawAlternate` every other ring starts from the
            opposite side and runs the other way, which is the interleaved look.
 
-           `drawEnd` decides what the loop does once everything is drawn: hold
-           it there, or retrace it back off so the loop closes on itself. */
+           `drawEnd` decides what the loop does once everything is drawn:
+
+             hold    leave it drawn
+             rewind  retrace it back off the way it came, so the end of the
+                     stroke retreats towards the start
+             erase   keep the start moving forward too, so the stroke is rubbed
+                     out from the point it began at rather than the point it
+                     finished at — draw all the way round, then wipe all the way
+                     round, and the loop closes on empty
+
+           The last of those needs two angles per band, not one: where the pen
+           has got to, and how much has gone behind it. */
         const rings = Math.max(1, Math.min(MAX_BANDS, Math.round(S.ringCount) || 1));
         const lead = U.clamp(+S.drawStagger || 0, 0, 95) / 100;
         const step = rings > 1 ? lead / (rings - 1) : 0;
         const span = Math.max(0.05, 1 - lead);
-
-        // 0 -> 1 across the loop, or 0 -> 1 -> 0 when it has to close on itself
-        const march = S.drawEnd === 'rewind'
-          ? ease(1 - Math.abs(1 - 2 * t), S.animEase) : ease(t, S.animEase);
 
         const FROM = { right: 0, bottom: Math.PI / 2, left: Math.PI, top: -Math.PI / 2 };
         const from0 = FROM[S.drawFrom] != null ? FROM[S.drawFrom] : 0;
@@ -156,11 +162,31 @@
 
         const prog = new Array(rings);
         const dirs = new Array(rings);
-        for (let i = 0; i < rings; i++) {
-          prog[i] = U.clamp((march - i * step) / span, 0, 1);
-          dirs[i] = (S.drawAlternate && (i % 2)) ? -sweep : sweep;
+        let tail = null;
+
+        if (S.drawEnd === 'erase') {
+          /* The drawing fills the first half of the loop and the rubbing out the
+             second, both in the same order, so at halfway everything is drawn
+             and at the end everything is gone — which is where it started. */
+          const headAt = ease(U.clamp(t * 2, 0, 1), S.animEase);
+          const tailAt = ease(U.clamp(t * 2 - 1, 0, 1), S.animEase);
+          tail = new Array(rings);
+          for (let i = 0; i < rings; i++) {
+            prog[i] = U.clamp((headAt - i * step) / span, 0, 1);
+            tail[i] = U.clamp((tailAt - i * step) / span, 0, 1);
+            dirs[i] = (S.drawAlternate && (i % 2)) ? -sweep : sweep;
+          }
+        } else {
+          // 0 -> 1 across the loop, or 0 -> 1 -> 0 when it has to close on itself
+          const march = S.drawEnd === 'rewind'
+            ? ease(1 - Math.abs(1 - 2 * t), S.animEase) : ease(t, S.animEase);
+          for (let i = 0; i < rings; i++) {
+            prog[i] = U.clamp((march - i * step) / span, 0, 1);
+            dirs[i] = (S.drawAlternate && (i % 2)) ? -sweep : sweep;
+          }
         }
-        A.reveal = { prog: prog, dirs: dirs, from: from0 };
+
+        A.reveal = { prog: prog, tail: tail, dirs: dirs, from: from0 };
         A.ringCount = rings;
         break;
       }

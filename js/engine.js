@@ -447,6 +447,7 @@
         cx: m ? sx / m : W / 2,
         cy: m ? sy / m : H / 2,
         prog: S.reveal.prog,
+        tail: S.reveal.tail || null,
         from: S.reveal.from || 0,
         dirs: S.reveal.dirs || null
       };
@@ -469,13 +470,19 @@
           code = k < nO ? lutO[k] : -3;
         }
         if (rv && code >= 0) {
-          const pr = rv.prog[code];
-          if (pr != null && pr < 1) {
-            if (pr <= 0) code = -1;
+          /* A band is the arc between its tail and its head. The head is how far
+             the pen has got; the tail is how much has been rubbed out behind it,
+             measured from the same starting angle. With the tail at zero this is
+             a stroke being drawn on; with the tail following the head round it
+             is a stroke being drawn and then erased from where it began. */
+          const head = rv.prog[code];
+          const tail = rv.tail ? rv.tail[code] : 0;
+          if (head != null && (head < 1 || tail > 0)) {
+            if (head <= tail) code = -1;
             else {
               let a = ang * (rv.dirs ? rv.dirs[code] : 1);
               a -= Math.floor(a / TAU) * TAU;
-              if (a > pr * TAU) code = -1;
+              if (a > head * TAU || a < tail * TAU) code = -1;
             }
           }
         }
