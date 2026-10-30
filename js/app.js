@@ -225,6 +225,15 @@
 
       const v = S[it.k];
       if (it.t === 'range') {
+        /* Position is measured in canvas pixels, so how far it can go depends on
+           the canvas. The slider is re-scaled to that rather than carrying a
+           fixed range that would be absurd on one format and a cage on another. */
+        if (it.dyn === 'place') {
+          const lim = Engine.placeLimit(S);
+          it.min = -lim; it.max = lim;
+          it._input.min = it._num.min = -lim;
+          it._input.max = it._num.max = lim;
+        }
         it._input.value = v;
         it._num.value = Math.round(v * 1000) / 1000;
         const pct = (v - it.min) / (it.max - it.min) * 100;
@@ -422,8 +431,9 @@
     const r = Engine.subjectRect(IMG, S, c.W, c.H, TOKEN);
     if (!r) return;
     const unit = Engine.computeUnit(S, c.W, c.H);
-    S.imgX = U.clamp(S.imgX + (hx * (c.W - r.w) - r.x) / unit * 100, -150, 150);
-    S.imgY = U.clamp(S.imgY + (vy * (c.H - r.h) - r.y) / unit * 100, -150, 150);
+    const lim = Engine.placeLimit(S);
+    S.imgX = U.clamp(S.imgX + (hx * (c.W - r.w) - r.x) / unit * 100, -lim, lim);
+    S.imgY = U.clamp(S.imgY + (vy * (c.H - r.h) - r.y) / unit * 100, -lim, lim);
     refresh(); scheduleRender(); save();
   }
 
@@ -531,14 +541,36 @@
      ceiling did nothing at all for them until this ran. */
   function migrate(storedRev) {
     const d = Schema.defaults();
+    // read the old basis before anything deletes it
+    const unit = oldUnit();
     if (storedRev < 2) {
       // 1200 was the old ceiling, and it magnified the artboard on any large
       // display. A value at or below it is the old default, not a preference.
       if (!(+S.previewQuality > 1200)) S.previewQuality = d.previewQuality;
     }
-    if (storedRev < 3) toPixels();
+    if (storedRev < 3) toPixels(unit);
+    if (storedRev < 4) {
+      /* The pixel conversion missed where the picture SITS. Position was a
+         percentage of the basis like everything else, so a stored offset came
+         back meaning pixels and the picture jumped to near the middle. By this
+         point the basis may already have been deleted by the earlier pass, so
+         the short side — which is what it defaulted to — is assumed. */
+      S.imgX = Math.round(((+S.imgX || 0) / 100) * unit);
+      S.imgY = Math.round(((+S.imgY || 0) / 100) * unit);
+    }
     S.rev = d.rev;
     save();
+  }
+
+  /* the dimension the old percentages were measured against */
+  function oldUnit() {
+    const basis = S.basis || 'short';
+    const c = Engine.canvasPx(S);
+    return basis === 'long' ? Math.max(c.W, c.H)
+      : basis === 'width' ? c.W
+      : basis === 'height' ? c.H
+      : basis === 'diag' ? Math.hypot(c.W, c.H) / Math.SQRT2
+      : Math.min(c.W, c.H);
   }
 
   /* Sizes used to be percentages of whichever side of the canvas you had picked.
@@ -546,14 +578,7 @@
      2.4px stroke where it meant 2.4% — invisible. Each one is converted through
      the basis it was actually drawn against, so the design that comes back is
      the design that was saved. */
-  function toPixels() {
-    const basis = S.basis || 'short';
-    const c = Engine.canvasPx(S);
-    const unit = basis === 'long' ? Math.max(c.W, c.H)
-      : basis === 'width' ? c.W
-      : basis === 'height' ? c.H
-      : basis === 'diag' ? Math.hypot(c.W, c.H) / Math.SQRT2
-      : Math.min(c.W, c.H);
+  function toPixels(unit) {
     const px = v => Math.round(((+v || 0) / 100) * unit * 10) / 10;
     ['strokeW', 'ringGap', 'ringOffset', 'maskSmooth', 'maskExpand',
      'brushWidth', 'ditherScale', 'grainScale', 'animGrainScale'].forEach(k => { S[k] = px(S[k]); });

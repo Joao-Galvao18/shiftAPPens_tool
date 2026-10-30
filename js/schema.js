@@ -61,7 +61,7 @@
 
   function defaults() {
     return {
-      rev: 3, lang: 'en', tab: 'strokes', closedGroups: {},
+      rev: 4, lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
       previewQuality: 2600, bg: '#FFEA00', bgTransparent: false,
@@ -132,8 +132,8 @@
             { k: 'fit', t: 'select', o: [['contain', 'fit.contain'], ['cover', 'fit.cover']] },
             { k: 'fitSubject', t: 'check' },
             { k: 'imgScale', t: 'range', min: 5, max: 300, step: 0.5, u: '%' },
-            { k: 'imgX', t: 'range', min: -150, max: 150, step: 0.1, u: '%' },
-            { k: 'imgY', t: 'range', min: -150, max: 150, step: 0.1, u: '%' },
+            { k: 'imgX', t: 'range', min: -2000, max: 2000, step: 1, u: 'px', dyn: 'place' },
+            { k: 'imgY', t: 'range', min: -2000, max: 2000, step: 1, u: 'px', dyn: 'place' },
             { k: 'rotate', t: 'range', min: -180, max: 180, step: 0.5, u: '°' },
             { k: 'flipH', t: 'check' },
             { k: 'flipV', t: 'check' }

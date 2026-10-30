@@ -176,6 +176,19 @@
 
   /* how many canvas pixels one source pixel covers, so the UI can show the
      background brush at its true size on the artboard */
+  /* How far from the middle the picture may be pushed.
+
+     Position used to be a percentage, and ±150 of those was one and a half
+     canvases — room to send a picture well off the edge. The same number read as
+     pixels once sizes became pixels, so the picture could only ever move 150px
+     and nothing could be dragged out of frame or aligned to an edge. It is
+     derived from the canvas now, far enough to leave the frame entirely from any
+     starting point. */
+  function placeLimit(S) {
+    const c = canvasPx(S);
+    return Math.max(400, Math.round(Math.max(c.W, c.H) * 1.6));
+  }
+
   function sourceScale(img, S, W, H) {
     if (!img) return 1;
     const m = placementMatrix(img, W, H, S, computeUnit(S, W, H));
@@ -919,6 +932,7 @@
     toSVG: toSVG,
     canvasPx: canvasPx,
     computeUnit: computeUnit,
+    placeLimit: placeLimit,
     ringBands: ringBands,
     canvasToSource: canvasToSource,
     sourceToCanvas: sourceToCanvas,

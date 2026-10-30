@@ -194,6 +194,16 @@
            q.y >= Math.min.apply(null, ys) - pad && q.y <= Math.max.apply(null, ys) + pad;
   }
 
+  /* is any part of the picture still inside the frame? */
+  function onBoard() {
+    const v = view();
+    const cs = frameCorners();
+    if (!cs) return true;
+    const xs = cs.map(c => c.x), ys = cs.map(c => c.y);
+    return Math.max.apply(null, xs) > 0 && Math.min.apply(null, xs) < v.width &&
+           Math.max.apply(null, ys) > 0 && Math.min.apply(null, ys) < v.height;
+  }
+
   function setSelected(on) {
     if (selected === on) return;
     selected = on;
@@ -213,7 +223,12 @@
     if (!ctx.IMG) return;
     const q = pointerPos(e);
     const h = handleAt(q);
-    if (h < 0 && !overImage(q)) { setSelected(false); return; }   // clicking off puts it down
+    // clicking off the picture puts it down — but only if there is any of it
+    // left on the artboard to click ON. Dragged fully out of frame it would
+    // otherwise be unreachable.
+    if (h < 0 && !overImage(q)) {
+      if (onBoard()) { setSelected(false); return; }
+    }
     setSelected(true);
     dragBase = snapshot();
     const common = {
@@ -239,11 +254,13 @@
     const v = view();
     const unit = Engine.computeUnit(S(), v.width, v.height);
 
+    const lim = Engine.placeLimit(S());
+
     if (dragImage.mode === 'move') {
       const dx = (e.clientX - dragImage.x) * dragImage.css;
       const dy = (e.clientY - dragImage.y) * dragImage.css;
-      S().imgX = U.clamp(dragImage.imgX + dx / unit * 100, -150, 150);
-      S().imgY = U.clamp(dragImage.imgY + dy / unit * 100, -150, 150);
+      S().imgX = U.clamp(dragImage.imgX + dx / unit * 100, -lim, lim);
+      S().imgY = U.clamp(dragImage.imgY + dy / unit * 100, -lim, lim);
       blit(dx, dy, 1, 0, 0);
       return;
     }
@@ -256,8 +273,8 @@
     // hold the opposite corner still
     S().imgX = dragImage.imgX; S().imgY = dragImage.imgY;
     const now = Engine.sourceToCanvas(ctx.IMG, S(), v.width, v.height, dragImage.src.x, dragImage.src.y);
-    S().imgX = U.clamp(dragImage.imgX + (a.x - now.x) / unit * 100, -150, 150);
-    S().imgY = U.clamp(dragImage.imgY + (a.y - now.y) / unit * 100, -150, 150);
+    S().imgX = U.clamp(dragImage.imgX + (a.x - now.x) / unit * 100, -lim, lim);
+    S().imgY = U.clamp(dragImage.imgY + (a.y - now.y) / unit * 100, -lim, lim);
     blit(0, 0, next / dragImage.scale, a.x, a.y);
   }
 
@@ -283,8 +300,9 @@
     S().imgScale = U.clamp(S().imgScale * factor, 5, 300);
     const after = Engine.sourceToCanvas(ctx.IMG, S(), v.width, v.height, before.x, before.y);
     const unit = Engine.computeUnit(S(), v.width, v.height);
-    S().imgX = U.clamp(S().imgX + (q.x - after.x) / unit * 100, -150, 150);
-    S().imgY = U.clamp(S().imgY + (q.y - after.y) / unit * 100, -150, 150);
+    const lim = Engine.placeLimit(S());
+    S().imgX = U.clamp(S().imgX + (q.x - after.x) / unit * 100, -lim, lim);
+    S().imgY = U.clamp(S().imgY + (q.y - after.y) / unit * 100, -lim, lim);
     ctx.render();
     clearTimeout(wheelZoom._t);
     wheelZoom._t = setTimeout(() => { ctx.refresh(); ctx.save(); }, 200);
