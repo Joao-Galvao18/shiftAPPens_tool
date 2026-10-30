@@ -198,8 +198,12 @@
           // a duration that is not a whole number of cycles stops partway
           // through the movement, so say so on the button itself
           const loops = Anim.cycles(S);
+          // H.264 and the recorder's WebM have no alpha channel at all, so a
+          // see-through background quietly becomes a solid one. Better said on
+          // the button than discovered in the file.
+          const flattens = S.bgTransparent && (S.animFormat === 'mp4' || S.animFormat === 'webm');
           it._input.textContent = t('l.animExport') + '  ·  ' + U.nice(Anim.durationSeconds(S), 1) +
-            's  ·  ' + n + ' × ' + rate + 'fps';
+            's  ·  ' + n + ' × ' + rate + 'fps' + (flattens ? '  ·  ' + t('ui.noAlpha') : '');
           it._input.classList.toggle('partial', Math.abs(loops - Math.round(loops)) > 0.02);
         } else if (it.k === 'bgToggle') {
           const on = S.bgMode !== 'off';
@@ -300,6 +304,7 @@
     vctx.drawImage(out, 0, 0);
     Stage.fitView();
     Stage.drawFrame();
+    $('#board').classList.toggle('clear', !!S.bgTransparent);
     const mp = c.W * c.H / 1e6;
     $('#dims').textContent = c.W + ' × ' + c.H;
     const shownPx = Math.round(view.getBoundingClientRect().width * Math.min(2, window.devicePixelRatio || 1));

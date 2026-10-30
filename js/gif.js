@@ -35,8 +35,11 @@
     };
   }
 
-  function accumulate(h, d, step) {
+  function accumulate(h, d, step, skipClear) {
     for (let i = 0; i < d.length; i += 4 * step) {
+      // a see-through pixel has no colour worth a palette slot, and counting the
+      // black behind it would drag every other colour towards black
+      if (skipClear && d[i + 3] < 128) continue;
       const r = d[i], gg = d[i + 1], bb = d[i + 2];
       const k = ((r >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3);
       h.count[k]++; h.sr[k] += r; h.sg[k] += gg; h.sb[k] += bb;
@@ -168,9 +171,15 @@
      frames to learn the palette, BEGIN to write the header, then stream each
      frame through addFrame. At 60fps a two second loop is 120 frames — keeping
      their pixels around would be hundreds of megabytes. */
-  function Encoder(w, h, delayCs) {
+  function Encoder(w, h, delayCs, transparent) {
     this.w = w; this.h = h;
     this.delay = Math.max(2, delayCs | 0);
+    /* GIF transparency is one bit: a palette slot is nominated as "show what is
+       behind" and a pixel either uses it or does not. There is no partial
+       cover, so an edge that was a smooth ramp of alpha has to land on one side
+       or the other — the cut-out comes out crisp rather than feathered. One
+       slot is held back from the quantiser to be that index. */
+    this.transparent = !!transparent;
     this._hist = newHist();
     this._out = new Buf();
     this._map = null;
@@ -181,21 +190,24 @@
   Encoder.prototype.sample = function (imageData) {
     // every pixel: only a handful of frames are sampled, and skipping pixels can
     // miss a thin stroke's colour entirely, which then has no entry to map to
-    accumulate(this._hist, imageData.data, 1);
+    accumulate(this._hist, imageData.data, 1, this.transparent);
   };
 
   Encoder.prototype.begin = function () {
-    const pal = quantize(this._hist, 256);
-    const bits = Math.max(1, Math.ceil(Math.log2(Math.max(2, pal.length))));
+    const room = this.transparent ? 255 : 256;
+    const pal = quantize(this._hist, room);
+    const bits = Math.max(1, Math.ceil(Math.log2(Math.max(2, pal.length + (this.transparent ? 1 : 0)))));
     const size = 1 << bits;
     this._bits = bits;
     this._map = mapper(pal);
+    this._clear = this.transparent ? size - 1 : -1;   // the slot that shows through
     const out = this._out;
 
     out.s('GIF89a');
     out.u16(this.w); out.u16(this.h);
     out.b(0x80 | ((bits - 1) << 4) | (bits - 1));   // global table, its size
-    out.b(0); out.b(0);
+    out.b(this.transparent ? this._clear : 0);      // background colour index
+    out.b(0);
     for (let i = 0; i < size; i++) {
       const c = pal[i] || [0, 0, 0];
       out.b(c[0]); out.b(c[1]); out.b(c[2]);
@@ -210,12 +222,24 @@
   Encoder.prototype.addFrame = function (imageData) {
     const out = this._out, d = imageData.data, idx = this._idx;
     const n = this.w * this.h;
-    for (let i = 0, p = 0; i < n; i++, p += 4) idx[i] = this._map(d[p], d[p + 1], d[p + 2]);
+    const clear = this._clear;
+    if (clear >= 0) {
+      for (let i = 0, p = 0; i < n; i++, p += 4) {
+        idx[i] = d[p + 3] < 128 ? clear : this._map(d[p], d[p + 1], d[p + 2]);
+      }
+    } else {
+      for (let i = 0, p = 0; i < n; i++, p += 4) idx[i] = this._map(d[p], d[p + 1], d[p + 2]);
+    }
 
     out.b(0x21); out.b(0xF9); out.b(4);
-    out.b(0);                       // no transparency, disposal "unspecified"
+    /* Disposal 2 — restore to background — matters once frames can see through
+       each other: left on "unspecified" every frame would be painted over the
+       last one, so the see-through parts would fill up with whatever came
+       before instead of staying empty. */
+    out.b(clear >= 0 ? ((2 << 2) | 1) : 0);
     out.u16(this.delay);
-    out.b(0); out.b(0);
+    out.b(clear >= 0 ? clear : 0);
+    out.b(0);
 
     out.b(0x2C);
     out.u16(0); out.u16(0);

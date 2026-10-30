@@ -337,6 +337,15 @@ input[type=color]::-moz-color-swatch{border:0; border-radius:2px}
     var(--ground);
 }
 #board{position:relative; line-height:0; box-shadow:0 2px 18px rgba(26,35,33,.14)}
+/* a transparent background is only transparent if you can see it is */
+#board.clear{
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(45deg, var(--sunken) 25%, transparent 25%, transparent 75%, var(--sunken) 75%),
+    linear-gradient(45deg, var(--sunken) 25%, transparent 25%, transparent 75%, var(--sunken) 75%);
+  background-size:18px 18px;
+  background-position:0 0, 9px 9px;
+}
 #view,#cursor{display:block; border-radius:0}
 #cursor{position:absolute; inset:0; pointer-events:none}
 #board.move{cursor:default}

@@ -371,21 +371,28 @@
     return lut;
   }
 
+  /* Each band code carries an alpha as well as a colour. With a transparent
+     background the background itself drops out, and so does anything set to
+     match it — the spaces between strokes, the halo, the fill behind the
+     cut-out — because "matches background" has to keep meaning what it says. */
   function palette(S) {
     const r = new Float32Array(MAXCODE + 8);
     const gg = new Float32Array(MAXCODE + 8);
     const b = new Float32Array(MAXCODE + 8);
-    const put = (code, hex) => {
+    const a = new Float32Array(MAXCODE + 8);
+    const put = (code, hex, alpha) => {
       const c = U.hex2rgb(hex);
       r[code + 4] = c[0]; gg[code + 4] = c[1]; b[code + 4] = c[2];
+      a[code + 4] = alpha;
     };
-    put(-3, S.bg);
-    put(-1, S.gapUseBg ? S.bg : S.gapColor);
-    put(-2, S.haloUseBg ? S.bg : S.haloColor);
-    put(-4, S.fillUseBg ? S.bg : S.fillColor);
+    const clear = S.bgTransparent ? 0 : 255;
+    put(-3, S.bg, clear);
+    put(-1, S.gapUseBg ? S.bg : S.gapColor, S.gapUseBg ? clear : 255);
+    put(-2, S.haloUseBg ? S.bg : S.haloColor, S.haloUseBg ? clear : 255);
+    put(-4, S.fillUseBg ? S.bg : S.fillColor, S.fillUseBg ? clear : 255);
     const cols = S.ringColors.length ? S.ringColors : ['#000000'];
-    for (let i = 0; i < MAXCODE; i++) put(i, cols[i % cols.length]);
-    return { r: r, g: gg, b: b };
+    for (let i = 0; i < MAXCODE; i++) put(i, cols[i % cols.length], 255);
+    return { r: r, g: gg, b: b, a: a };
   }
 
   /* ---------- 4. paint the rings ---------- */
@@ -435,7 +442,7 @@
     const n = W * H;
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const base = sdf[i] - expand;
-      let R = 0, G = 0, B = 0;
+      let R = 0, G = 0, B = 0, A = 0;
       // the angle does not depend on the tap, so it is worked out once
       const ang = rv ? Math.atan2(((i / W) | 0) - rv.cy, (i % W) - rv.cx) - rv.from : 0;
       for (let t = 0; t < nt; t++) {
@@ -459,10 +466,16 @@
             }
           }
         }
-        const ci = code + 4, wt = wts[t];
-        R += pal.r[ci] * wt; G += pal.g[ci] * wt; B += pal.b[ci] * wt;
+        /* Weighted by alpha as well as by the tap, so the colour that lands on
+           a half-covered edge pixel is the colour of what is actually there.
+           Averaging the colours first and the alpha separately would blend in
+           the background's colour at every edge and leave a fringe of it once
+           the background itself has gone. */
+        const ci = code + 4, al = pal.a[ci] * wts[t];
+        R += pal.r[ci] * al; G += pal.g[ci] * al; B += pal.b[ci] * al; A += al;
       }
-      d8[p] = R; d8[p + 1] = G; d8[p + 2] = B; d8[p + 3] = 255;
+      if (A > 0) { d8[p] = R / A; d8[p + 1] = G / A; d8[p + 2] = B / A; d8[p + 3] = A; }
+      else { d8[p] = d8[p + 1] = d8[p + 2] = d8[p + 3] = 0; }
     }
     return out;
   }
@@ -672,12 +685,27 @@
       }
     }
     nc.getContext('2d').putImageData(id, 0, 0);
+
+    /* Grain is a blend, and a blend lands on empty pixels too. On a transparent
+       background that would scatter noise across what is meant to be nothing,
+       so the alpha the artwork had before the grain is put back afterwards. */
+    let before = null;
+    if (S.bgTransparent) {
+      before = U.createCanvas(W, H);
+      before.getContext('2d').drawImage(ctx.canvas, 0, 0);
+    }
     ctx.save();
     ctx.globalCompositeOperation = 'overlay';
     ctx.globalAlpha = U.clamp(S.grainAmount / 100, 0, 1);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(nc, 0, 0, W, H);
     ctx.restore();
+    if (before) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(before, 0, 0);
+      ctx.restore();
+    }
   }
 
   /* ---------- 7. full render (cached so colour tweaks are instant) ---------- */
@@ -833,7 +861,9 @@
     const dOf = (loops) => Contour.toPath(loops, sx, sy, P, P, eps);
 
     const parts = [];
-    parts.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="' + S.bg + '"/>');
+    if (!S.bgTransparent) {
+      parts.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="' + S.bg + '"/>');
+    }
 
     const push = (outerLvl, innerLvl, fill) => {
       let dd = dOf(loopsAt(outerLvl));

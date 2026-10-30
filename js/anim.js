@@ -254,7 +254,7 @@
 
   async function toGIF(S, img, W, H, token, onStep) {
     const n = gifFrameCount(S);
-    const enc = new GIF.Encoder(W, H, gifDelay(S));
+    const enc = new GIF.Encoder(W, H, gifDelay(S), !!S.bgTransparent);
     const probes = Math.min(n, 6);
     const total = probes + n;
 

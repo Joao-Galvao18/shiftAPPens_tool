@@ -64,7 +64,7 @@
       rev: 3, lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
-      previewQuality: 2600, bg: '#FFEA00',
+      previewQuality: 2600, bg: '#FFEA00', bgTransparent: false,
       // placement
       fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
@@ -308,7 +308,8 @@
             { k: 'ch', t: 'num', min: 1, step: 1 },
             { k: 'units', t: 'select', o: [['px', 'units.px'], ['mm', 'units.mm'], ['in', 'units.in']] },
             { k: 'dpi', t: 'num', min: 10, max: 1200, step: 1, show: s => s.units !== 'px' },
-            { k: 'bg', t: 'color' }
+            { k: 'bgTransparent', t: 'check', hint: true },
+            { k: 'bg', t: 'color', show: s => !s.bgTransparent }
           ]
         },
         {

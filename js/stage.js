@@ -147,8 +147,11 @@
   function blit(dx, dy, scale, ax, ay) {
     const v = view(), vctx = ctx.vctx;
     vctx.setTransform(1, 0, 0, 1, 0, 0);
-    vctx.fillStyle = S().bg;
-    vctx.fillRect(0, 0, v.width, v.height);
+    vctx.clearRect(0, 0, v.width, v.height);
+    if (!S().bgTransparent) {
+      vctx.fillStyle = S().bg;
+      vctx.fillRect(0, 0, v.width, v.height);
+    }
     vctx.save();
     if (scale !== 1) {
       vctx.translate(ax, ay);
