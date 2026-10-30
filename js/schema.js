@@ -94,6 +94,7 @@
       // animation
       animType: 'draw', animDir: 'out', animSeconds: 1.5, animDuration: 3,
       drawFrom: 'top', drawSweep: 'cw', drawAlternate: false, drawStagger: 55, drawEnd: 'hold',
+      drawContinuous: true,
       animAmount: 35, animScale: 1, animFormat: 'mp4',
       animFps: 60, animQuality: 'high',
       animEase: true, animGrain: 0, animGrainScale: 3.4, animGrainMono: true,
@@ -238,9 +239,16 @@
             { k: 'drawStagger', t: 'range', min: 0, max: 95, step: 1, u: '%', hint: true, show: isDraw },
             { k: 'drawEnd', t: 'select', hint: true, show: isDraw,
               o: [['hold', 'de.hold'], ['erase', 'de.erase'], ['rewind', 'de.rewind']] },
+            {
+              k: 'drawContinuous', t: 'check', hint: true,
+              show: s => isDraw(s) && (s.drawEnd === 'erase' || s.drawEnd === 'rewind')
+            },
             { k: 'animDir', t: 'select', o: [['out', 'an.out'], ['in', 'an.in']], show: s => s.animType === 'radiate' || s.animType === 'hue' },
             { k: 'animAmount', t: 'range', min: 5, max: 100, step: 1, u: '%', show: s => s.animType === 'breathe' || s.animType === 'wobble' },
-            { k: 'animEase', t: 'check', show: s => s.animType === 'reveal' || isDraw(s) },
+            { k: 'animEase', t: 'check',
+              show: s => s.animType === 'reveal' ||
+                (isDraw(s) && !(s.drawContinuous !== false &&
+                  (s.drawEnd === 'erase' || s.drawEnd === 'rewind'))) },
             { k: 'animSeconds', t: 'range', min: 0.3, max: 8, step: 0.1, u: 's', hint: true },
             { k: 'animScrub', t: 'range', min: 0, max: 100, step: 1, u: '%' }
           ]

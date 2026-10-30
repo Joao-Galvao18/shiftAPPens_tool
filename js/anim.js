@@ -154,7 +154,6 @@
         const rings = Math.max(1, Math.min(MAX_BANDS, Math.round(S.ringCount) || 1));
         const lead = U.clamp(+S.drawStagger || 0, 0, 95) / 100;
         const step = rings > 1 ? lead / (rings - 1) : 0;
-        const span = Math.max(0.05, 1 - lead);
 
         const FROM = { right: 0, bottom: Math.PI / 2, left: Math.PI, top: -Math.PI / 2 };
         const from0 = FROM[S.drawFrom] != null ? FROM[S.drawFrom] : 0;
@@ -163,11 +162,38 @@
         const prog = new Array(rings);
         const dirs = new Array(rings);
         let tail = null;
+        const undoes = S.drawEnd === 'erase' || S.drawEnd === 'rewind';
+        const nonstop = S.drawContinuous !== false && undoes;
 
-        if (S.drawEnd === 'erase') {
+        if (nonstop) {
+          /* No standing still.
+
+             Timed the other way, a band finishes its sweep and then waits for
+             the undoing to begin — the first one drawn waits longest, which is
+             the pause. Here each band starts coming off the instant it has
+             finished going on: its sweep takes `span`, the undoing takes the
+             same `span` straight afterwards, and `span` is set so the last band
+             finishes undoing exactly as the loop ends. Nothing is ever
+             stationary and everything moves at one rate, drawing and undoing
+             alike, which is why the easing is skipped here — easing IS a
+             slowing down at each end. */
+          const span = Math.max(0.02, (1 - lead) / 2);
+          tail = S.drawEnd === 'erase' ? new Array(rings) : null;
+          for (let i = 0; i < rings; i++) {
+            const a = (t - i * step) / span;           // 0..2 over draw then undo
+            if (S.drawEnd === 'erase') {
+              prog[i] = U.clamp(a, 0, 1);
+              tail[i] = U.clamp(a - 1, 0, 1);
+            } else {
+              prog[i] = a <= 1 ? U.clamp(a, 0, 1) : U.clamp(2 - a, 0, 1);
+            }
+            dirs[i] = (S.drawAlternate && (i % 2)) ? -sweep : sweep;
+          }
+        } else if (S.drawEnd === 'erase') {
           /* The drawing fills the first half of the loop and the rubbing out the
              second, both in the same order, so at halfway everything is drawn
              and at the end everything is gone — which is where it started. */
+          const span = Math.max(0.05, 1 - lead);
           const headAt = ease(U.clamp(t * 2, 0, 1), S.animEase);
           const tailAt = ease(U.clamp(t * 2 - 1, 0, 1), S.animEase);
           tail = new Array(rings);
@@ -178,6 +204,7 @@
           }
         } else {
           // 0 -> 1 across the loop, or 0 -> 1 -> 0 when it has to close on itself
+          const span = Math.max(0.05, 1 - lead);
           const march = S.drawEnd === 'rewind'
             ? ease(1 - Math.abs(1 - 2 * t), S.animEase) : ease(t, S.animEase);
           for (let i = 0; i < rings; i++) {
