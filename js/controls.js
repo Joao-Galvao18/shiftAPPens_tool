@@ -113,6 +113,22 @@
       row.appendChild(input);
       it._show = (v) => { input.value = v; val.textContent = String(v).toUpperCase(); };
 
+      /* The project palette, right under the swatch. Opening the system colour
+         wheel to type a brand hex you use every day is a lot of steps for a
+         colour that is already decided. */
+      const picks = U.el('div', 'brandrow');
+      picks.appendChild(U.el('span', 'brandcap', t('ui.brandRow')));
+      Schema.BRAND.forEach(hex => {
+        const b = U.el('button', 'brandchip');
+        b.type = 'button';
+        b.style.background = hex;
+        b.title = hex;
+        b.setAttribute('aria-label', hex);
+        b.onclick = () => { it._show(hex); commit(hex); };
+        picks.appendChild(b);
+      });
+      row.appendChild(picks);
+
     } else if (it.t === 'palette') {
       input = U.el('div', 'pal');
       row.appendChild(input);

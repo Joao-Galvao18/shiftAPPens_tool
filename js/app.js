@@ -361,24 +361,21 @@
     fr.readAsDataURL(file);
   }
 
-  /* The canvas takes the picture's pixel size PLUS room around it, and the
-     picture is placed at exactly 1:1 so it stays as sharp as the file. Matching
-     the picture exactly leaves the silhouette filling the frame, so every stroke
-     lands outside the canvas and the tool appears to do nothing: the strokes
-     need somewhere to go. */
+  /* The canvas IS the picture: same pixel size, placed at 1:1, so what you
+     upload is what the frame is and the file's own pixels are kept.
+
+     A cut-out with transparent margins has room for its strokes inside that
+     frame. A photograph that fills its rectangle edge to edge does not — the
+     silhouette is the whole frame and the strokes grow outside it — so scale the
+     picture down, or set a larger canvas, and they come back. */
   function fitCanvasToPicture(im) {
-    const iw = im.naturalWidth, ih = im.naturalHeight;
-    const margin = Math.max(64, Math.round(Math.min(iw, ih) * 0.18));
     S.units = 'px';
-    S.cw = iw + margin * 2;
-    S.ch = ih + margin * 2;
+    S.cw = im.naturalWidth;
+    S.ch = im.naturalHeight;
     S.sizePreset = 'custom';
     S.fit = 'contain';
     S.fitSubject = false;
-    // contain would scale the picture up to fill the larger canvas; cancel that
-    // exactly, so the placement matrix comes out at 1:1 and the pixels are kept
-    const base = Math.min(S.cw / iw, S.ch / ih);
-    S.imgScale = U.clamp(100 / base, 5, 300);
+    S.imgScale = 100;
     S.imgX = 0;
     S.imgY = 0;
   }

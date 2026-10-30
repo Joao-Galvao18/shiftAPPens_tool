@@ -146,7 +146,7 @@ body{
 .hint2{color:var(--ink-2); font-size:11px; line-height:1.5}
 
 /* a switch reads better beside its label */
-.row.switchRow{flex-direction:row; align-items:center; justify-content:space-between; gap:12px}
+.row.switchRow{flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px}
 .row.switchRow .lab{color:var(--ink); cursor:pointer}
 .row.switchRow .hint2{flex-basis:100%}
 

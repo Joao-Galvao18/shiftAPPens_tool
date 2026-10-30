@@ -146,7 +146,7 @@
         },
         {
           id: 'treat', items: [
-            { k: 'artMode', t: 'select', o: [['photo', 'am.photo'], ['bitmap', 'am.bitmap'], ['silhouette', 'am.silhouette'], ['none', 'am.none']] },
+            { k: 'artMode', t: 'select', hint: true, o: [['photo', 'am.photo'], ['bitmap', 'am.bitmap'], ['silhouette', 'am.silhouette'], ['none', 'am.none']] },
             { k: 'inkColor', t: 'color', show: s => s.artMode === 'bitmap' || s.artMode === 'silhouette' },
             { k: 'inkOn', t: 'select', o: [['dark', 'ink.dark'], ['light', 'ink.light']], show: isBitmap },
             { k: 'bwThreshold', t: 'range', min: 0, max: 255, step: 1, show: isBitmap },
