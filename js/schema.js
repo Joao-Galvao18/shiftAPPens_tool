@@ -54,7 +54,7 @@
   const PER_IMAGE_KEYS = [
     'fit', 'fitSubject', 'imgScale', 'imgX', 'imgY', 'rotate', 'flipH', 'flipV',
     'maskSource', 'maskThreshold', 'maskInvert', 'maskFillHoles', 'maskSmooth', 'maskExpand',
-    'bgMode', 'artMode', 'artOpacity', 'brightness', 'contrast', 'saturation',
+    'bgMode', 'artMode', 'artOpacity', 'brightness', 'saturation',
     'artInvert', 'posterize', 'bwThreshold', 'ditherMode', 'ditherStrength',
     'ditherScale', 'artClip', 'paperTransparent', 'grainAmount'
   ];
@@ -64,7 +64,7 @@
       rev: 4, lang: 'en', tab: 'strokes', closedGroups: {},
       // canvas
       sizePreset: 'ig-post', units: 'px', cw: 1080, ch: 1080, dpi: 72,
-      previewQuality: 2600, bg: '#FFEA00', bgTransparent: false,
+      previewQuality: 2600, bg: '#FFEA00', bgTransparent: false, sizeScales: false,
       // placement
       fit: 'contain', fitSubject: false, imgScale: 100, imgX: 0, imgY: 0,
       rotate: 0, flipH: false, flipV: false,
@@ -81,7 +81,7 @@
       // background removal — one switch, everything else read from the picture
       bgMode: 'off',
       // artwork
-      artMode: 'photo', artOpacity: 100, brightness: 0, contrast: 10, saturation: 100,
+      artMode: 'photo', artOpacity: 100, brightness: 0, saturation: 100,
       artInvert: false, posterize: 0,
       bwThreshold: 150, ditherMode: 'none', ditherStrength: 100, ditherScale: 1.1,
       halftoneAngle: 45, halftoneShape: 'dot',
@@ -163,7 +163,6 @@
             { k: 'paperTransparent', t: 'check', show: isBitmap },
             { k: 'paperColor', t: 'color', show: s => isBitmap(s) && !s.paperTransparent },
             { k: 'brightness', t: 'range', min: -100, max: 100, step: 1, show: isPicture },
-            { k: 'contrast', t: 'range', min: -99, max: 99, step: 1, show: isPicture },
             { k: 'saturation', t: 'range', min: 0, max: 300, step: 1, u: '%', show: isPhoto },
             { k: 'posterize', t: 'range', min: 0, max: 12, step: 1, show: isPhoto },
             { k: 'artOpacity', t: 'range', min: 0, max: 100, step: 1, u: '%' },
@@ -186,6 +185,7 @@
       id: 'strokes', icon: 'strokes', groups: [
         {
           id: 'shape', items: [
+            { k: 'sizeScales', t: 'check', hint: true },
             { k: 'ringCount', t: 'range', min: 0, max: 40, step: 1 },
             { k: 'strokeW', t: 'range', min: 0.5, max: 400, step: 0.1, u: 'px', hint: true },
             { k: 'ringGap', t: 'range', min: 0, max: 400, step: 0.1, u: 'px' },

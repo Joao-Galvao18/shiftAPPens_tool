@@ -252,7 +252,7 @@
   function moveDrag(e) {
     if (!dragImage) return;
     const v = view();
-    const unit = Engine.computeUnit(S(), v.width, v.height);
+    const unit = Engine.placeUnit(S(), v.width, v.height);
 
     const lim = Engine.placeLimit(S());
 
@@ -299,7 +299,7 @@
     const factor = Math.exp(-e.deltaY * 0.0015);
     S().imgScale = U.clamp(S().imgScale * factor, 5, 300);
     const after = Engine.sourceToCanvas(ctx.IMG, S(), v.width, v.height, before.x, before.y);
-    const unit = Engine.computeUnit(S(), v.width, v.height);
+    const unit = Engine.placeUnit(S(), v.width, v.height);
     const lim = Engine.placeLimit(S());
     S().imgX = U.clamp(S().imgX + (q.x - after.x) / unit * 100, -lim, lim);
     S().imgY = U.clamp(S().imgY + (q.y - after.y) / unit * 100, -lim, lim);

@@ -238,7 +238,11 @@
         it._num.value = Math.round(v * 1000) / 1000;
         const pct = (v - it.min) / (it.max - it.min) * 100;
         it._input.style.setProperty('--fill', U.clamp(pct, 0, 100) + '%');
-        it._val.innerHTML = '';
+        /* With the sizes scaling, what you type is no longer what you get, so
+           the row says what it actually works out to on this canvas. */
+        const f = Engine.sizeFactor(S);
+        it._val.innerHTML = (it.u === 'px' && it.dyn !== 'place' && f !== 1)
+          ? '<span class="px">' + U.nice(v * f, 0) + 'px</span>' : '';
       } else if (it.t === 'check') it._input.checked = !!v;
       else if (it.t === 'palette') it._render();
       else if (it.t === 'presets') it._render();
@@ -427,7 +431,7 @@
     const c = Engine.canvasPx(S);
     const r = Engine.subjectRect(IMG, S, c.W, c.H, TOKEN);
     if (!r) return;
-    const unit = Engine.computeUnit(S, c.W, c.H);
+    const unit = Engine.placeUnit(S, c.W, c.H);
     const lim = Engine.placeLimit(S);
     S.imgX = U.clamp(S.imgX + (hx * (c.W - r.w) - r.x) / unit * 100, -lim, lim);
     S.imgY = U.clamp(S.imgY + (vy * (c.H - r.h) - r.y) / unit * 100, -lim, lim);

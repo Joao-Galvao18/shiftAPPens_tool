@@ -28,10 +28,35 @@
      a supersampled trace — so the stored number is scaled by how big this render
      is against the canvas it describes. The formula every caller already uses,
      value / 100 * unit, then lands on exactly the right number of pixels. */
-  function computeUnit(S, W, H) {
+  function placeUnit(S, W, H) {
     const c = canvasPx(S);
-    const k = c.W > 0 ? W / c.W : 1;
-    return 100 * k;
+    return 100 * (c.W > 0 ? W / c.W : 1);
+  }
+
+  /* With "Scale with the canvas" on, a thickness is read against a canvas of
+     SIZE_REF a side rather than taken literally, so a big format gets a weight
+     to match instead of hairlines.
+
+     The canvas is measured by the square it covers — the geometric mean of its
+     sides — not by its short side. A banner is the case this exists for, and a
+     banner is wide and shallow: measured on the short side a 3000x1000 one
+     scores the same as a 1000 square and gets no more weight at all, which was
+     exactly the complaint. The mean also stays sane at extreme proportions,
+     where the long side or the diagonal run away.
+
+     Deliberately kept apart from placeUnit. Position is in canvas pixels
+     whatever this is set to: scaling that as well would shift the picture
+     sideways the moment the switch was flicked. */
+  const SIZE_REF = 1000;
+
+  function sizeFactor(S) {
+    if (!S || !S.sizeScales) return 1;
+    const c = canvasPx(S);
+    return Math.max(0.05, Math.sqrt(c.W * c.H) / SIZE_REF);
+  }
+
+  function computeUnit(S, W, H) {
+    return placeUnit(S, W, H) * sizeFactor(S);
   }
 
   function canvasPx(S) {
@@ -106,7 +131,9 @@
     const base = S.fit === 'cover' ? Math.max(W / fw, H / fh) : Math.min(W / fw, H / fh);
     const s = base * (S.imgScale / 100);
     const m = new DOMMatrix();
-    m.translateSelf(W / 2 + S.imgX / 100 * unit, H / 2 + S.imgY / 100 * unit);
+    // position is canvas pixels whatever the size switch says
+    const pu = placeUnit(S, W, H);
+    m.translateSelf(W / 2 + S.imgX / 100 * pu, H / 2 + S.imgY / 100 * pu);
     if (S.rotate) m.rotateSelf(S.rotate);
     m.scaleSelf(s * (S.flipH ? -1 : 1), s * (S.flipV ? -1 : 1));
     m.translateSelf(-(fx + fw / 2), -(fy + fh / 2));
@@ -598,14 +625,12 @@
     const n = w2 * h2;
 
     const br = S.brightness / 100;
-    const ct = Math.tan((U.clamp(S.contrast, -99, 99) / 100 + 1) * Math.PI / 4);
     const sat = S.saturation / 100;
     const lv = S.posterize > 1 ? S.posterize : 0;
 
     for (let p = 0; p < d.length; p += 4) {
       let r = d[p] / 255, gg = d[p + 1] / 255, b = d[p + 2] / 255;
       r += br; gg += br; b += br;
-      r = (r - 0.5) * ct + 0.5; gg = (gg - 0.5) * ct + 0.5; b = (b - 0.5) * ct + 0.5;
       if (sat !== 1) {
         const l = 0.299 * r + 0.587 * gg + 0.114 * b;
         r = l + (r - l) * sat; gg = l + (gg - l) * sat; b = l + (b - l) * sat;
@@ -850,7 +875,7 @@
   function artLayer(S, img, W, H, token, unit, f) {
     const key = [
       fieldKey(S, W, H, token),
-      S.artMode, S.artOpacity, S.brightness, S.contrast, S.saturation, S.artInvert,
+      S.artMode, S.artOpacity, S.brightness, S.saturation, S.artInvert,
       S.posterize, S.bwThreshold, S.ditherMode, S.ditherStrength, S.ditherScale,
       S.halftoneAngle, S.halftoneShape, S.crispPixels, S.artClip, S.inkOn,
       S.inkColor, S.paperColor, S.paperTransparent, S.seed
@@ -986,6 +1011,8 @@
     toSVG: toSVG,
     canvasPx: canvasPx,
     computeUnit: computeUnit,
+    placeUnit: placeUnit,
+    sizeFactor: sizeFactor,
     placeLimit: placeLimit,
     ringBands: ringBands,
     canvasToSource: canvasToSource,
