@@ -138,6 +138,26 @@
         elementoMensagem.classList.add("visible");
       }, 400);
     }, TEMPO_MENSAGEM_2);
+
+        // Troca suavemente para a 3ª mensagem 10 segundos depois
+    setTimeout(() => {
+      elementoMensagem.classList.remove("visible");
+
+      setTimeout(() => {
+        elementoMensagem.textContent = MENSAGEM_3;
+        elementoMensagem.classList.add("visible");
+      }, 400);
+    }, TEMPO_MENSAGEM_3);
+
+        // Troca suavemente para a 4ª mensagem 10 segundos depois
+    setTimeout(() => {
+      elementoMensagem.classList.remove("visible");
+
+      setTimeout(() => {
+        elementoMensagem.textContent = MENSAGEM_4;
+        elementoMensagem.classList.add("visible");
+      }, 400);
+    }, TEMPO_MENSAGEM_4);
   </script>
 
 </body>
