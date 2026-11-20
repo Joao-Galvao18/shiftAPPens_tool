@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loading</title>
+  <style>
+    :root {
+      /* =========================================================
+         DEFINE YOUR 5 LOADING BAR ("TRAÇOS") COLORS HERE
+         (Pre-filled with the 5 colors from your logo)
+         ========================================================= */
+      --color-1: #FF5A43; /* Coral */
+      --color-2: #008F39; /* Green */
+      --color-3: #FFEA00; /* Yellow */
+      --color-4: #32C3B5; /* Teal */
+      --color-5: #DF48BC; /* Magenta */
+
+      --bg-color: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 36px;
+      background-color: var(--bg-color);
+    }
+
+    .logo {
+      max-width: 320px;
+      width: 80vw;
+      height: auto;
+      display: block;
+    }
+
+    /* 12-bar radial spinner */
+    .spinner {
+      position: relative;
+      width: 64px;
+      height: 64px;
+    }
+
+    .spinner span {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 17px;
+      margin-left: -3px;
+      margin-top: -8.5px;
+      border-radius: 999px;
+      transform: rotate(calc(var(--i) * 30deg)) translateY(-21px);
+      animation: spinner-fade 1.2s linear infinite;
+      animation-delay: calc((var(--i) - 12) * 0.1s);
+    }
+
+    /* Cycles through your 5 defined colors across the 12 bars */
+    .spinner span:nth-child(5n + 1) { background-color: var(--color-1); }
+    .spinner span:nth-child(5n + 2) { background-color: var(--color-2); }
+    .spinner span:nth-child(5n + 3) { background-color: var(--color-3); }
+    .spinner span:nth-child(5n + 4) { background-color: var(--color-4); }
+    .spinner span:nth-child(5n + 5) { background-color: var(--color-5); }
+
+    @keyframes spinner-fade {
+      0%   { opacity: 1; }
+      100% { opacity: 0.12; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Replace "image_686c92.png" with the path/filename of your logo image -->
+  <img src="group 113.png" alt="Shift Happens" class="logo" />
+
+  <div class="spinner" aria-label="Loading">
+    <span style="--i: 0"></span>
+    <span style="--i: 1"></span>
+    <span style="--i: 2"></span>
+    <span style="--i: 3"></span>
+    <span style="--i: 4"></span>
+    <span style="--i: 5"></span>
+    <span style="--i: 6"></span>
+    <span style="--i: 7"></span>
+    <span style="--i: 8"></span>
+    <span style="--i: 9"></span>
+    <span style="--i: 10"></span>
+    <span style="--i: 11"></span>
+  </div>
+
+</body>
+</html>
