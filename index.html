@@ -1,22 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loading</title>
+  <title>shiftAPPens Tool</title>
   <style>
     :root {
-      /* =========================================================
-         DEFINE YOUR 5 LOADING BAR ("TRAÇOS") COLORS HERE
-         (Pre-filled with the 5 colors from your logo)
-         ========================================================= */
-      --color-1: #FF5A43; /* Coral */
-      --color-2: #008F39; /* Green */
-      --color-3: #FFEA00; /* Yellow */
-      --color-4: #32C3B5; /* Teal */
-      --color-5: #DF48BC; /* Magenta */
+      --color-1: #FF5A43;
+      --color-2: #008F39;
+      --color-3: #FFEA00;
+      --color-4: #32C3B5;
+      --color-5: #DF48BC;
 
       --bg-color: #ffffff;
+      --text-color: #555555;
     }
 
     * {
@@ -31,8 +28,10 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 36px;
+      gap: 32px;
+      padding: 24px;
       background-color: var(--bg-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     .logo {
@@ -42,7 +41,7 @@
       display: block;
     }
 
-    /* 12-bar radial spinner */
+    /* Spinner de 12 traços */
     .spinner {
       position: relative;
       width: 64px;
@@ -63,7 +62,6 @@
       animation-delay: calc((var(--i) - 12) * 0.1s);
     }
 
-    /* Cycles through your 5 defined colors across the 12 bars */
     .spinner span:nth-child(5n + 1) { background-color: var(--color-1); }
     .spinner span:nth-child(5n + 2) { background-color: var(--color-2); }
     .spinner span:nth-child(5n + 3) { background-color: var(--color-3); }
@@ -74,12 +72,26 @@
       0%   { opacity: 1; }
       100% { opacity: 0.12; }
     }
+
+    /* Estilo da mensagem de estado */
+    .status-message {
+      min-height: 1.5em;
+      font-size: 1rem;
+      color: var(--text-color);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .status-message.visible {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Replace "image_686c92.png" with the path/filename of your logo image -->
-  <img src="group 113.png" alt="Shift Happens" class="logo" />
+  <!-- Nome exato com "G" maiúsculo conforme está na tua pasta -->
+  <img src="Group 113.png" alt="Shift Happens" class="logo" />
 
   <div class="spinner" aria-label="Loading">
     <span style="--i: 0"></span>
@@ -95,6 +107,38 @@
     <span style="--i: 10"></span>
     <span style="--i: 11"></span>
   </div>
+
+  <p id="status-message" class="status-message"></p>
+
+  <script>
+    const MENSAGEM_1 = "A carregar a aplicação, aguarda só mais um momento...";
+    const MENSAGEM_2 = "Presets carregados, a preparar a interface...";
+    const MENSAGEM_3 = "A abrir a aplicação";
+    const MENSAGEM_4 = "Fuck não carregou? sorry :/";
+
+    const TEMPO_MENSAGEM_1 = 5000;  // 5 segundos após abrir a página
+    const TEMPO_MENSAGEM_2 = 15000; // 10 segundos depois da primeira (15s no total)
+    const TEMPO_MENSAGEM_3 = 25000; // 10 segundos depois da segunda (25s no total)
+    const TEMPO_MENSAGEM_4 = 35000; // 10 segundos depois da terceira (35s no total)
+
+    const elementoMensagem = document.getElementById("status-message");
+
+    // Mostra a 1ª mensagem aos 5 segundos
+    setTimeout(() => {
+      elementoMensagem.textContent = MENSAGEM_1;
+      elementoMensagem.classList.add("visible");
+    }, TEMPO_MENSAGEM_1);
+
+    // Troca suavemente para a 2ª mensagem 10 segundos depois
+    setTimeout(() => {
+      elementoMensagem.classList.remove("visible");
+
+      setTimeout(() => {
+        elementoMensagem.textContent = MENSAGEM_2;
+        elementoMensagem.classList.add("visible");
+      }, 400);
+    }, TEMPO_MENSAGEM_2);
+  </script>
 
 </body>
 </html>
